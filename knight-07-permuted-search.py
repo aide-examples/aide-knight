@@ -2,12 +2,16 @@
 """
 FILE:       knight-07-permuted-search.py
 BASED ON:   knight-06-own-stack.py
-PROMPT:     We want to (optionally) randomize the order in which possible moves 
-            are searched (once upon program start)
-RESULT:     The effect of the new parameter leads to a ration of 1:10 between the number
-            of trials needed to find a solution when using pure DFS
-            It has no noticable effect with the Warndorff rule.
+PROMPT:     This was a short conversation with a different AI.
+            We did some reengineering, improved the time measuring,
+            added a new heuristic ("centrifugal") and brought in
+            professional commandline arg treatment
+RESULT:     The effect of permuting search sequence leads to a large variation
+            of efficiency (number of trials needed to find a solution)
+            when using pure DFS. It has no noticeable effect with the Warnsdorff rule.
             AI can explain this effect very well. It is not a bug in the program.
+            The new centrifugal rule performs quite well and is faster than Warnsdorff.
+            
 """
 """
 Knight's Tour Solver
