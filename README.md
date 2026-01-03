@@ -20,6 +20,8 @@ It is expected that the basics of programming are known — specifically imperat
 
 The task is to program a systematic tree search using recursion to implement pure backtracking. It is then discovered that a 6x6 field is manageable this way, but an 8x8 field requires an additional heuristic, which essentially states: "If you feel constricted, move into the narrow path early". The learning objective is achieved when there is technical proficiency in implementing the recursive search from scratch and in selecting the next move according to this rule.
 
+Typically the students will write three or four functions. Object orientation is considered to be "too complicated for now" and is reserved for "a later stage of maturity" of the students.
+
 As a bonus, it will usually be pointed out that many runtime environments have technical limitations regarding recursion (stack limits), which can sometimes be extended via system settings or, if necessary, must be bypassed by custom stack management.
 
 
@@ -82,12 +84,14 @@ All these considerations deal with WHAT and WHY more than with HOW?
 
 One or more candidates are installed, executed and tested. Then their code will be examined for 5 minutes (300 seconds, indeed), perhaps adding a few comments or highlighting some statements on a printed copy of the source code.
 
+Maybe some groups start work with a collection of functions while others found a solution using a class design. Further extending the programs will inevitably bring up the **need to switch to object oriented design**. It is important that the teacher introduces the basic idea of OO now or during the early next steps. *Just function and data being perceived as a logical unit.* Nothing else.
+
 
 ## Step 4
 
-Now the actual work begins, with most changes to the program being executed by the agent.
+Now the actual work begins, with most changes to the program being executed by the agent. *Have a look at the collection of Python scripts in this repository if you like.*
 
-- **Explain** how the systematic search works. Use short code excerpts. 
+- We start asking the AI to **Explain** how the systematic search works. 
 - Where is the place in the code which identifies promising moves?
 - Then we **run the program** for a really large board (100x100 or more). Programs working with direct recursion will encounter difficulties with stack limits here. Affected student groups will have to look for better programs. 
   - They can do this in a naive way ("I want to solve really large boards")
