@@ -4,8 +4,53 @@ FILE:       knight-08-permuted-search.py
 BASED ON:   knight-07-own-stack.py
 PROMPT:     Produce a graphic visualisation (optionally animated)
             of the move sequence.
-RESULT:     ..
-            
+            Add options to define the start field and to
+            enforce a losed loop tour.
+            - in fact these were several prompts which were slighty more precise -
+
+RESULT:     When using an assistant like Claude Code the AI will
+            try to verify the changes it made. It constructs test cases 
+            and conducts them even without being asked to do so.
+
+            This is the final result of our experiment with agentic coding.
+
+            Make your own experiments with adding symmetry conditions, for instance.
+            To construct symmetric tours (which are loops on boards with an even
+            number of squares) you can add moves to both ends of your tour 
+            alternatingly.
+
+            When looking closer at "closed loop tours" you will find that
+            NOT USING a corner as a starting field has a huge influence on
+            run time. What is the best starting position? Does the centrifugal
+            approach perform better that Warnsdorff?
+
+            Interestingly you will see some symmetric solutions (without demanding
+            them explicitly!) when using centrifugal search in combination with 
+            certain start fields at at 5x6 board. There is such a lot to discover!
+
+            If you start near the center of a classical 8x8 chessboard the
+            centrifugal rule will need only 550 trials to find a closed tour,
+            whereas warnsdorff needs amost 7000.
+
+            Wehn starting on a 9x10 board at position 3,3 the warnsdorff rule
+            finds a solution after phenomenal 200 trials whereas the centrifugal
+            search takes an ETERNITY of time...
+
+            Changing the start field to 7,8 however, makes the warnsdorff rule 
+            more than 100 times SLOWER than the centrifugal rule.
+
+            Could we have meta strategies which try both rules for a limited
+            amount of time to check if one of them is really superior for
+            a given board and starting field? Should we select random starting
+            fields and "invest" some limited time on each hoping for a quick
+            solution with one of the algorithms?
+
+            You could also add a-priori blocked fields to the board which 
+            will efectively allow you to use any board shape. Think about
+            optimal search strategies in that case.
+
+            Keep going and have fun!
+
 """
 """
 Knight's Tour Solver
@@ -74,12 +119,16 @@ class KnightTourSolver:
         height: int,
         search_mode: str,
         random_moves: bool,
-        debug: bool
+        debug: bool,
+        start_x: int = 0,
+        start_y: int = 0,
+        closed: bool = False
     ):
         self.width = width
         self.height = height
         self.search_mode = search_mode
         self.debug = debug
+        self.closed = closed
 
         # --- Sentinel board ---
         bw = width + 4
@@ -90,8 +139,11 @@ class KnightTourSolver:
             for x in range(2, width + 2):
                 self.board[y][x] = self.EMPTY
 
-        self.start_x = 2
-        self.start_y = 2
+        # Start position (add 2 for sentinel offset)
+        self.start_x = start_x + 2
+        self.start_y = start_y + 2
+        self.start_x_user = start_x  # Keep original for display
+        self.start_y_user = start_y
 
         # --- Center coordinates for centrifugal mode ---
         self.center_x = (width - 1) / 2 + 2
@@ -178,6 +230,13 @@ class KnightTourSolver:
     # Iterative DFS
     # --------------------------------------------------------
 
+    def _can_reach_start(self, x: int, y: int) -> bool:
+        """Check if the start square is reachable from (x, y) with a knight move."""
+        for dx, dy in self.knight_moves:
+            if x + dx == self.start_x and y + dy == self.start_y:
+                return True
+        return False
+
     def solve(self) -> bool:
         total_squares = self.width * self.height
 
@@ -202,7 +261,13 @@ class KnightTourSolver:
             current = stack[-1]
 
             if current.move_num + 1 == total_squares:
-                return True
+                # For closed tour, check if we can return to start
+                if self.closed:
+                    if self._can_reach_start(current.x, current.y):
+                        return True
+                    # Not a valid closed tour, continue searching
+                else:
+                    return True
 
             if current.next_index >= len(current.moves):
                 self.board[current.y][current.x] = self.EMPTY
@@ -258,13 +323,15 @@ class SVGVisualizer:
         height: int,
         path: List[Tuple[int, int]],
         cell_size: int = 50,
-        metadata: Optional[dict] = None
+        metadata: Optional[dict] = None,
+        is_closed: bool = False
     ):
         self.width = width
         self.height = height
         self.path = path
         self.cell_size = cell_size
         self.metadata = metadata or {}
+        self.is_closed = is_closed
 
         # Layout dimensions
         self.margin = 30  # space for coordinates
@@ -273,7 +340,7 @@ class SVGVisualizer:
 
         # Colors
         self.light_square = "#f0d9b5"
-        self.dark_square = "#b58863"
+        self.dark_square = "#c59873"
         self.path_color = "#2563eb"
         self.start_color = "#22c55e"
         self.end_color = "#ef4444"
@@ -292,19 +359,26 @@ class SVGVisualizer:
         cy = y * self.cell_size + self.cell_size / 2
         return cx, cy
 
-    def _generate_grid(self) -> str:
+    def _generate_grid(self, with_colors: bool = True) -> str:
         """Generate SVG for the chessboard grid."""
         lines = []
         for y in range(self.height):
             for x in range(self.width):
-                is_light = (x + y) % 2 == 0
-                color = self.light_square if is_light else self.dark_square
                 px = self.margin + x * self.cell_size
                 py = y * self.cell_size
-                lines.append(
-                    f'<rect x="{px}" y="{py}" width="{self.cell_size}" '
-                    f'height="{self.cell_size}" fill="{color}" />'
-                )
+                if with_colors:
+                    is_light = (x + y) % 2 == 0
+                    color = self.light_square if is_light else self.dark_square
+                    lines.append(
+                        f'<rect x="{px}" y="{py}" width="{self.cell_size}" '
+                        f'height="{self.cell_size}" fill="{color}" />'
+                    )
+                else:
+                    # Plain white squares with grey border
+                    lines.append(
+                        f'<rect x="{px}" y="{py}" width="{self.cell_size}" '
+                        f'height="{self.cell_size}" fill="white" stroke="#ccc" stroke-width="1" />'
+                    )
         return "\n    ".join(lines)
 
     def _generate_coordinates(self) -> str:
@@ -344,7 +418,17 @@ class SVGVisualizer:
             color = self._interpolate_color(ratio)
             lines.append(
                 f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-                f'stroke="{color}" stroke-width="3" stroke-linecap="round" />'
+                f'stroke="{color}" stroke-width="4" stroke-linecap="round" />'
+            )
+
+        # Add closing line for closed tour (from last to first)
+        if self.is_closed and total > 0:
+            x1, y1 = self._cell_center(*self.path[-1])
+            x2, y2 = self._cell_center(*self.path[0])
+            lines.append(
+                f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
+                f'stroke="{self.end_color}" stroke-width="4" stroke-linecap="round" '
+                f'stroke-dasharray="8,4" />'
             )
 
         return "\n    ".join(lines)
@@ -412,14 +496,26 @@ class SVGVisualizer:
         """Generate SVG structure for animation (path built by JS)."""
         return f'''<svg id="board" width="{self.svg_width}" height="{self.svg_height + 20}"
      xmlns="http://www.w3.org/2000/svg">
-    <!-- Grid -->
-    {self._generate_grid()}
+    <!-- Grid with colors -->
+    <g id="grid-colored">
+    {self._generate_grid(with_colors=True)}
+    </g>
+
+    <!-- Grid without colors (hidden by default) -->
+    <g id="grid-plain" style="display:none;">
+    {self._generate_grid(with_colors=False)}
+    </g>
 
     <!-- Coordinates -->
     {self._generate_coordinates()}
 
     <!-- Path (drawn by JavaScript) -->
     <g id="path-lines"></g>
+
+    <!-- Closing line for closed tour (hidden until complete) -->
+    <line id="closing-line" style="display:none;"
+          stroke="{self.end_color}" stroke-width="4" stroke-linecap="round"
+          stroke-dasharray="8,4" />
 
     <!-- Knight marker -->
     <circle id="knight" cx="0" cy="0" r="{self.cell_size // 4}" fill="#7c3aed"
@@ -494,22 +590,47 @@ h1 {
     font-weight: 500;
     min-width: 120px;
 }
+.view-options {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+.view-options label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #475569;
+    cursor: pointer;
+    user-select: none;
+}
+.view-options input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
 '''
 
     def _generate_animation_js(self) -> str:
         """Generate JavaScript for animation controls."""
         # Convert path to JSON for JavaScript
         path_json = str(self.path).replace("(", "[").replace(")", "]")
+        is_closed_js = "true" if self.is_closed else "false"
 
         return f'''
 const path = {path_json};
 const cellSize = {self.cell_size};
 const margin = {self.margin};
 const total = path.length;
+const isClosed = {is_closed_js};
 
 let currentMove = 0;
 let isPlaying = false;
 let animationTimer = null;
+let showNumbers = true;
+let showColors = true;
 
 function getCellCenter(x, y) {{
     return [
@@ -529,6 +650,22 @@ function updateDisplay() {{
     document.getElementById('move-display').textContent = `Move: ${{currentMove}} / ${{total - 1}}`;
     document.getElementById('stepBack').disabled = currentMove === 0;
     document.getElementById('stepForward').disabled = currentMove >= total - 1;
+}}
+
+function updateClosingLine() {{
+    const closingLine = document.getElementById('closing-line');
+    if (!isClosed || currentMove < total - 1) {{
+        closingLine.style.display = 'none';
+        return;
+    }}
+    // Show closing line when tour is complete
+    const [x1, y1] = getCellCenter(path[total-1][0], path[total-1][1]);
+    const [x2, y2] = getCellCenter(path[0][0], path[0][1]);
+    closingLine.setAttribute('x1', x1);
+    closingLine.setAttribute('y1', y1);
+    closingLine.setAttribute('x2', x2);
+    closingLine.setAttribute('y2', y2);
+    closingLine.style.display = 'block';
 }}
 
 function drawUpToMove(moveNum) {{
@@ -558,19 +695,21 @@ function drawUpToMove(moveNum) {{
         pathGroup.appendChild(line);
     }}
 
-    // Draw move numbers up to current
-    const fontSize = cellSize / 3;
-    for (let i = 0; i <= moveNum; i++) {{
-        const [cx, cy] = getCellCenter(path[i][0], path[i][1]);
-        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', cx);
-        text.setAttribute('y', cy + fontSize / 3);
-        text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('font-size', fontSize);
-        text.setAttribute('font-weight', 'bold');
-        text.setAttribute('fill', '#1e293b');
-        text.textContent = i;
-        numbersGroup.appendChild(text);
+    // Draw move numbers up to current (if enabled)
+    if (showNumbers) {{
+        const fontSize = cellSize / 3;
+        for (let i = 0; i <= moveNum; i++) {{
+            const [cx, cy] = getCellCenter(path[i][0], path[i][1]);
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', cx);
+            text.setAttribute('y', cy + fontSize / 3);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('font-size', fontSize);
+            text.setAttribute('font-weight', 'bold');
+            text.setAttribute('fill', '#1e293b');
+            text.textContent = i;
+            numbersGroup.appendChild(text);
+        }}
     }}
 
     // Position knight
@@ -578,6 +717,20 @@ function drawUpToMove(moveNum) {{
     knight.setAttribute('cx', kx);
     knight.setAttribute('cy', ky);
     knight.style.display = 'block';
+
+    // Update closing line
+    updateClosingLine();
+}}
+
+function toggleNumbers() {{
+    showNumbers = document.getElementById('showNumbers').checked;
+    drawUpToMove(currentMove);
+}}
+
+function toggleColors() {{
+    showColors = document.getElementById('showColors').checked;
+    document.getElementById('grid-colored').style.display = showColors ? 'block' : 'none';
+    document.getElementById('grid-plain').style.display = showColors ? 'none' : 'block';
 }}
 
 function stepForward() {{
@@ -675,6 +828,10 @@ updateDisplay();
         <button id="stepForward" onclick="stepForward()">Step ▶</button>
         <label>Speed: <input type="range" id="speed" min="1" max="100" value="50"></label>
         <span id="move-display">Move: 0 / 0</span>
+        <div class="view-options">
+            <label><input type="checkbox" id="showColors" checked onchange="toggleColors()"> Square colors</label>
+            <label><input type="checkbox" id="showNumbers" checked onchange="toggleNumbers()"> Move numbers</label>
+        </div>
     </div>'''
             script = f'<script>\n{self._generate_animation_js()}\n</script>'
         else:
@@ -727,6 +884,9 @@ Examples:
   %(prog)s 8 8 -v                    Generate static HTML visualization
   %(prog)s 8 8 -v --animate          Generate animated visualization
   %(prog)s 8 8 -v -o tour.html       Save visualization to custom file
+  %(prog)s 8 8 --start 3,4           Start from position (3,4)
+  %(prog)s 8 8 --closed --warnsdorff Find closed (circular) tour
+  %(prog)s 5 5 --closed              Error: closed tour impossible (odd x odd)
 """
     )
     parser.add_argument(
@@ -789,24 +949,73 @@ Examples:
         help="Include animation controls in the visualization"
     )
 
+    # Start position and closed tour
+    parser.add_argument(
+        "--start",
+        type=str,
+        metavar="X,Y",
+        help="Start position as x,y coordinates (0-indexed, default: 0,0)"
+    )
+    parser.add_argument(
+        "--closed",
+        action="store_true",
+        help="Require a closed (circular) tour that returns to start"
+    )
+
     args = parser.parse_args()
     if args.search_mode is None:
         args.search_mode = "dfs"
+
+    # Parse start position
+    if args.start:
+        try:
+            parts = args.start.split(",")
+            if len(parts) != 2:
+                raise ValueError()
+            args.start_x = int(parts[0])
+            args.start_y = int(parts[1])
+        except ValueError:
+            parser.error(f"Invalid start position '{args.start}'. Use format: x,y (e.g., 3,4)")
+    else:
+        args.start_x = 0
+        args.start_y = 0
+
     return args
 
 
 def main():
     args = parse_args()
 
+    # Validate start position
+    if args.start_x < 0 or args.start_x >= args.width:
+        print(f"Error: Start x={args.start_x} is out of range [0, {args.width - 1}]")
+        return
+    if args.start_y < 0 or args.start_y >= args.height:
+        print(f"Error: Start y={args.start_y} is out of range [0, {args.height - 1}]")
+        return
+
+    # Check if closed tour is possible
+    if args.closed and args.width % 2 == 1 and args.height % 2 == 1:
+        print(f"Error: A closed knight's tour is impossible on a {args.width}x{args.height} board.")
+        print("Reason: Both dimensions are odd, so there are unequal numbers of")
+        print("        light and dark squares. A closed tour requires equal counts")
+        print("        because the knight alternates between square colors.")
+        return
+
     solver = KnightTourSolver(
         args.width,
         args.height,
         search_mode=args.search_mode,
         random_moves=args.random_moves,
-        debug=args.debug
+        debug=args.debug,
+        start_x=args.start_x,
+        start_y=args.start_y,
+        closed=args.closed
     )
 
     print(f"Board size  : {args.width}x{args.height}")
+    print(f"Start pos   : ({args.start_x},{args.start_y})")
+    print(f"Tour type   : {'Closed (circular)' if args.closed else 'Open'}")
     print(f"Search mode : {SEARCH_MODES[args.search_mode]}")
     print(f"Move order  : {solver.move_order_label}")
 
@@ -829,7 +1038,8 @@ def main():
                 "time": elapsed,
             }
             visualizer = SVGVisualizer(
-                args.width, args.height, path, metadata=metadata
+                args.width, args.height, path, metadata=metadata,
+                is_closed=args.closed
             )
             html = visualizer.generate_html(animate=args.animate)
 

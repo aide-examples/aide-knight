@@ -10,7 +10,12 @@ RESULT:     The effect of permuting search sequence leads to a large variation
             of efficiency (number of trials needed to find a solution)
             when using pure DFS. It has no noticeable effect with the Warnsdorff rule.
             AI can explain this effect very well. It is not a bug in the program.
-            The new centrifugal rule performs quite well and is faster than Warnsdorff.
+            
+            The new centrifugal rule performs quite well and is often FASTER than Warnsdorff.
+            It uses significantly less false trials and thus overcompensates the
+            additional cost for calculating the distance from the center.
+            Given that there is so much literature on Warnsdorff this is really
+            a remarkable finding!
             
 """
 """
