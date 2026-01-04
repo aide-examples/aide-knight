@@ -93,6 +93,10 @@ class KnightTourSolver:
         self.start_x = 2
         self.start_y = 2
 
+        # --- Center coordinates for centrifugal mode ---
+        self.center_x = (width - 1) / 2 + 2
+        self.center_y = (height - 1) / 2 + 2
+
         # --- Statistics ---
         self.stats = MoveStatistics()
 
@@ -134,10 +138,7 @@ class KnightTourSolver:
 
     def _distance_from_center(self, x: int, y: int) -> float:
         """Calculate squared distance from board center (higher = farther from center)."""
-        # Board coordinates are offset by 2 due to sentinel, so adjust
-        cx = (self.width - 1) / 2 + 2
-        cy = (self.height - 1) / 2 + 2
-        return (x - cx) ** 2 + (y - cy) ** 2
+        return (x - self.center_x) ** 2 + (y - self.center_y) ** 2
 
     def _ordered_moves_centrifugal(self, x: int, y: int) -> List[Tuple[int, int]]:
         """Order moves by distance from center (farthest first)."""
