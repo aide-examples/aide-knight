@@ -41,7 +41,7 @@ Features:
 - Optional random initial move ordering
 - Optional debug output
 - Detailed move-examination statistics
-- HTML/SVG visualization (static or animated)
+- HTML/SVG visualization with animation controls
 - experimental code for creating symmetric paths
 """
 
@@ -567,131 +567,6 @@ class SVGVisualizer:
 
         return "\n    ".join(lines)
 
-    def _generate_path_static(self) -> str:
-        """Generate SVG for the complete path with gradient coloring."""
-        lines = []
-        total = len(self.path)
-
-        for i in range(total - 1):
-            x1, y1 = self._cell_center(*self.path[i])
-            x2, y2 = self._cell_center(*self.path[i + 1])
-            ratio = i / (total - 1) if total > 1 else 0
-            color = self._interpolate_color(ratio)
-            lines.append(
-                f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-                f'stroke="{color}" stroke-width="4" stroke-linecap="round" />'
-            )
-
-        # Add closing line for closed tour (from last to first)
-        if self.is_closed and total > 0:
-            x1, y1 = self._cell_center(*self.path[-1])
-            x2, y2 = self._cell_center(*self.path[0])
-            lines.append(
-                f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-                f'stroke="{self.end_color}" stroke-width="4" stroke-linecap="round" '
-                f'stroke-dasharray="8,4" />'
-            )
-
-        return "\n    ".join(lines)
-
-    def _generate_path_static_symmetric(self) -> str:
-        """Generate SVG for symmetric path with two colors showing the half-paths."""
-        lines = []
-        total = len(self.path)
-        half = total // 2
-
-        # First half (path A) - blue gradient
-        for i in range(half - 1):
-            x1, y1 = self._cell_center(*self.path[i])
-            x2, y2 = self._cell_center(*self.path[i + 1])
-            lines.append(
-                f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-                f'stroke="{self.path_a_color}" stroke-width="4" stroke-linecap="round" />'
-            )
-
-        # Connection line between the two halves (dashed purple)
-        if half > 0 and half < total:
-            x1, y1 = self._cell_center(*self.path[half - 1])
-            x2, y2 = self._cell_center(*self.path[half])
-            lines.append(
-                f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-                f'stroke="{self.connect_color}" stroke-width="4" stroke-linecap="round" '
-                f'stroke-dasharray="8,4" />'
-            )
-
-        # Second half (path B reversed) - red gradient
-        for i in range(half, total - 1):
-            x1, y1 = self._cell_center(*self.path[i])
-            x2, y2 = self._cell_center(*self.path[i + 1])
-            lines.append(
-                f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-                f'stroke="{self.path_b_color}" stroke-width="4" stroke-linecap="round" />'
-            )
-
-        return "\n    ".join(lines)
-
-    def _generate_move_numbers(self) -> str:
-        """Generate SVG for move numbers in each cell."""
-        lines = []
-        font_size = self.cell_size // 3
-
-        for i, (x, y) in enumerate(self.path):
-            cx, cy = self._cell_center(x, y)
-            lines.append(
-                f'<text x="{cx}" y="{cy + font_size // 3}" text-anchor="middle" '
-                f'font-size="{font_size}" font-weight="bold" fill="#1e293b">{i}</text>'
-            )
-
-        return "\n    ".join(lines)
-
-    def _generate_markers(self) -> str:
-        """Generate start and end position markers."""
-        lines = []
-        radius = self.cell_size // 6
-
-        # Start marker (green circle)
-        sx, sy = self._cell_center(*self.path[0])
-        lines.append(
-            f'<circle cx="{sx}" cy="{sy}" r="{radius}" fill="{self.start_color}" '
-            f'opacity="0.5" />'
-        )
-
-        # End marker (red circle)
-        ex, ey = self._cell_center(*self.path[-1])
-        lines.append(
-            f'<circle cx="{ex}" cy="{ey}" r="{radius}" fill="{self.end_color}" '
-            f'opacity="0.5" />'
-        )
-
-        return "\n    ".join(lines)
-
-    def _generate_svg_static(self) -> str:
-        """Generate the complete static SVG."""
-        path_svg = (self._generate_path_static_symmetric()
-                    if self.symmetry
-                    else self._generate_path_static())
-        return f'''<svg id="board" width="{self.svg_width}" height="{self.svg_height + 20}"
-     xmlns="http://www.w3.org/2000/svg">
-    <!-- Grid -->
-    {self._generate_grid()}
-
-    <!-- Coordinates -->
-    {self._generate_coordinates()}
-
-    <!-- Path -->
-    <g id="path-lines">
-    {path_svg}
-    </g>
-
-    <!-- Markers -->
-    {self._generate_markers()}
-
-    <!-- Move numbers -->
-    <g id="move-numbers">
-    {self._generate_move_numbers()}
-    </g>
-</svg>'''
-
     def _generate_svg_animated(self) -> str:
         """Generate SVG structure for animation (path built by JS)."""
         return f'''<svg id="board" width="{self.svg_width}" height="{self.svg_height + 20}"
@@ -1026,8 +901,8 @@ drawUpToMove(0);
 updateDisplay();
 '''
 
-    def generate_html(self, animate: bool = False) -> str:
-        """Generate complete HTML document."""
+    def generate_html(self) -> str:
+        """Generate complete HTML document with animated visualization."""
         meta_parts = []
         if "board_size" in self.metadata:
             meta_parts.append(f'<span>Board: {self.metadata["board_size"]}</span>')
@@ -1044,9 +919,8 @@ updateDisplay();
 
         metadata_html = "\n        ".join(meta_parts)
 
-        if animate:
-            svg = self._generate_svg_animated()
-            controls = '''
+        svg = self._generate_svg_animated()
+        controls = '''
     <div class="controls">
         <button id="reset" onclick="reset()">Reset</button>
         <button id="stepBack" onclick="stepBack()">◀ Step</button>
@@ -1060,11 +934,7 @@ updateDisplay();
             <label><input type="checkbox" id="showNumbers" checked onchange="toggleNumbers()"> Move numbers</label>
         </div>
     </div>'''
-            script = f'<script>\n{self._generate_animation_js()}\n</script>'
-        else:
-            svg = self._generate_svg_static()
-            controls = ''
-            script = ''
+        script = f'<script>\n{self._generate_animation_js()}\n</script>'
 
         return f'''<!DOCTYPE html>
 <html lang="en">
@@ -1108,8 +978,7 @@ Examples:
   %(prog)s 8 8 --centrifugal         Solve 8x8 preferring edge squares
   %(prog)s 8 8 --random              Randomize initial move order
   %(prog)s 10 10 --warnsdorff -d     Solve with debug output
-  %(prog)s 8 8 -v                    Generate static HTML visualization
-  %(prog)s 8 8 -v --animate          Generate animated visualization
+  %(prog)s 8 8 -v                    Generate HTML visualization
   %(prog)s 8 8 -v -o tour.html       Save visualization to custom file
   %(prog)s 8 8 --start 3,4           Start from position (3,4)
   %(prog)s 8 8 --closed --warnsdorff Find closed (circular) tour
@@ -1172,12 +1041,6 @@ Examples:
         metavar="FILE",
         help="Output file for visualization (default: knight-tour.html)"
     )
-    parser.add_argument(
-        "--animate",
-        action="store_true",
-        help="Include animation controls in the visualization"
-    )
-
     # Start position and closed tour
     parser.add_argument(
         "--start",
@@ -1334,7 +1197,7 @@ def main():
                 is_closed=tour_is_closed,
                 symmetry=symmetry
             )
-            html = visualizer.generate_html(animate=args.animate)
+            html = visualizer.generate_html()
 
             with open(args.output, "w", encoding="utf-8") as f:
                 f.write(html)
