@@ -831,6 +831,7 @@ let isPlaying = false;
 let animationTimer = null;
 let showNumbers = true;
 let showColors = true;
+let showKnight = true;
 
 function getCellCenter(x, y) {{
     return [
@@ -912,11 +913,11 @@ function drawUpToMove(moveNum) {{
         }}
     }}
 
-    // Position knight
+    // Position knight (if visible)
     const [kx, ky] = getCellCenter(path[moveNum][0], path[moveNum][1]);
     knight.setAttribute('cx', kx);
     knight.setAttribute('cy', ky);
-    knight.style.display = 'block';
+    knight.style.display = showKnight ? 'block' : 'none';
 
     // Update closing line
     updateClosingLine();
@@ -958,11 +959,11 @@ function reset() {{
     // Restore all view options
     showNumbers = true;
     showColors = true;
+    showKnight = true;
     document.getElementById('showNumbers').checked = true;
     document.getElementById('showColors').checked = true;
     document.getElementById('grid-colored').style.display = 'block';
     document.getElementById('grid-plain').style.display = 'none';
-    document.getElementById('knight').style.display = 'block';
     drawUpToMove(currentMove);
     updateDisplay();
 }}
@@ -973,11 +974,11 @@ function showFullTour() {{
     // Hide colors, numbers, and knight for clean view
     showNumbers = false;
     showColors = false;
+    showKnight = false;
     document.getElementById('showNumbers').checked = false;
     document.getElementById('showColors').checked = false;
     document.getElementById('grid-colored').style.display = 'none';
     document.getElementById('grid-plain').style.display = 'block';
-    document.getElementById('knight').style.display = 'none';
     drawUpToMove(currentMove);
     updateDisplay();
 }}
