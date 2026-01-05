@@ -955,6 +955,29 @@ function stepBack() {{
 function reset() {{
     pause();
     currentMove = 0;
+    // Restore all view options
+    showNumbers = true;
+    showColors = true;
+    document.getElementById('showNumbers').checked = true;
+    document.getElementById('showColors').checked = true;
+    document.getElementById('grid-colored').style.display = 'block';
+    document.getElementById('grid-plain').style.display = 'none';
+    document.getElementById('knight').style.display = 'block';
+    drawUpToMove(currentMove);
+    updateDisplay();
+}}
+
+function showFullTour() {{
+    pause();
+    currentMove = total - 1;
+    // Hide colors, numbers, and knight for clean view
+    showNumbers = false;
+    showColors = false;
+    document.getElementById('showNumbers').checked = false;
+    document.getElementById('showColors').checked = false;
+    document.getElementById('grid-colored').style.display = 'none';
+    document.getElementById('grid-plain').style.display = 'block';
+    document.getElementById('knight').style.display = 'none';
     drawUpToMove(currentMove);
     updateDisplay();
 }}
@@ -1028,6 +1051,7 @@ updateDisplay();
         <button id="stepBack" onclick="stepBack()">◀ Step</button>
         <button id="playPause" onclick="togglePlayPause()">Play</button>
         <button id="stepForward" onclick="stepForward()">Step ▶</button>
+        <button id="fullTour" onclick="showFullTour()">Full Tour</button>
         <label>Speed: <input type="range" id="speed" min="1" max="100" value="50"></label>
         <span id="move-display">Move: 0 / 0</span>
         <div class="view-options">
