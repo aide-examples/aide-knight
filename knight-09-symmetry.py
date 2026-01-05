@@ -1302,9 +1302,11 @@ def main():
             }
             if symmetry:
                 metadata["symmetry"] = tour_type
+            # Symmetric tours are always closed
+            tour_is_closed = args.closed or (symmetry is not None)
             visualizer = SVGVisualizer(
                 args.width, args.height, path, metadata=metadata,
-                is_closed=args.closed,
+                is_closed=tour_is_closed,
                 symmetry=symmetry
             )
             html = visualizer.generate_html(animate=args.animate)
