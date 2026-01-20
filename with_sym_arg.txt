@@ -1,0 +1,236 @@
+[DEBUG] Effective KNIGHT_MOVES order:
+  0: (+2,+1)
+  1: (+1,+2)
+  2: (-1,+2)
+  3: (-2,+1)
+  4: (-2,-1)
+  5: (-1,-2)
+  6: (+1,-2)
+  7: (+2,-1)
+Board size  : 5x6
+Start pos   : (3,2)
+Tour type   : Symmetric (Vertical)
+Search mode : Centrifugal (prefer edges)
+Move order  : canonical
+
+------------------------------------------------------------ iter 0
+Action: INIT
+Start A=(3,2), B=(3,3)
+Initial moves from A: 6
+  .   .   .   .   .
+  .   .   .   .   .
+  .   .   .   0   .
+  .   .   .   1   .
+  .   .   .   .   .
+  .   .   .   .   .
+
+------------------------------------------------------------ iter 1
+Action: MOVE
+Active=A, move_num=1
+Placed (4,0) and mirror (4,5)
+A=(4,0), B=(4,5)
+Next moves available: 1
+  .   .   .   .   2
+  .   .   .   .   .
+  .   .   .   0   .
+  .   .   .   1   .
+  .   .   .   .   .
+  .   .   .   .   3
+
+------------------------------------------------------------ iter 2
+Action: MOVE
+Active=A, move_num=2
+Placed (2,1) and mirror (2,4)
+A=(2,1), B=(2,4)
+Next moves available: 4
+  .   .   .   .   2
+  .   .   4   .   .
+  .   .   .   0   .
+  .   .   .   1   .
+  .   .   5   .   .
+  .   .   .   .   3
+
+------------------------------------------------------------ iter 3
+Action: MOVE
+Active=A, move_num=3
+Placed (0,0) and mirror (0,5)
+A=(0,0), B=(0,5)
+Next moves available: 1
+  6   .   .   .   2
+  .   .   4   .   .
+  .   .   .   0   .
+  .   .   .   1   .
+  .   .   5   .   .
+  7   .   .   .   3
+
+------------------------------------------------------------ iter 4
+Action: MOVE
+Active=A, move_num=4
+Placed (1,2) and mirror (1,3)
+A=(1,2), B=(1,3)
+Next moves available: 3
+  6   .   .   .   2
+  .   .   4   .   .
+  .   8   .   0   .
+  .   9   .   1   .
+  .   .   5   .   .
+  7   .   .   .   3
+
+------------------------------------------------------------ iter 5
+Action: MOVE
+Active=A, move_num=5
+Placed (0,4) and mirror (0,1)
+A=(0,4), B=(0,1)
+Next moves available: 2
+  6   .   .   .   2
+ 11   .   4   .   .
+  .   8   .   0   .
+  .   9   .   1   .
+ 10   .   5   .   .
+  7   .   .   .   3
+
+------------------------------------------------------------ iter 6
+Action: MOVE
+Active=A, move_num=6
+Placed (2,5) and mirror (2,0)
+A=(2,5), B=(2,0)
+Next moves available: 1
+  6   .  13   .   2
+ 11   .   4   .   .
+  .   8   .   0   .
+  .   9   .   1   .
+ 10   .   5   .   .
+  7   .  12   .   3
+
+------------------------------------------------------------ iter 7
+Action: MOVE
+Active=A, move_num=7
+Placed (4,4) and mirror (4,1)
+A=(4,4), B=(4,1)
+Next moves available: 1
+  6   .  13   .   2
+ 11   .   4   .  15
+  .   8   .   0   .
+  .   9   .   1   .
+ 10   .   5   .  14
+  7   .  12   .   3
+
+------------------------------------------------------------ iter 8
+Action: MOVE
+Active=A, move_num=8
+Placed (2,3) and mirror (2,2)
+A=(2,3), B=(2,2)
+Next moves available: 6
+  6   .  13   .   2
+ 11   .   4   .  15
+  .   8  17   0   .
+  .   9  16   1   .
+ 10   .   5   .  14
+  7   .  12   .   3
+
+------------------------------------------------------------ iter 9
+Action: MOVE
+Active=A, move_num=9
+Placed (3,5) and mirror (3,0)
+A=(3,5), B=(3,0)
+Next moves available: 2
+  6   .  13  19   2
+ 11   .   4   .  15
+  .   8  17   0   .
+  .   9  16   1   .
+ 10   .   5   .  14
+  7   .  12  18   3
+
+------------------------------------------------------------ iter 10
+Action: MOVE
+Active=A, move_num=10
+Placed (4,3) and mirror (4,2)
+A=(4,3), B=(4,2)
+Next moves available: 1
+  6   .  13  19   2
+ 11   .   4   .  15
+  .   8  17   0  21
+  .   9  16   1  20
+ 10   .   5   .  14
+  7   .  12  18   3
+
+------------------------------------------------------------ iter 11
+Action: MOVE
+Active=A, move_num=11
+Placed (3,1) and mirror (3,4)
+A=(3,1), B=(3,4)
+Next moves available: 1
+  6   .  13  19   2
+ 11   .   4  22  15
+  .   8  17   0  21
+  .   9  16   1  20
+ 10   .   5  23  14
+  7   .  12  18   3
+
+------------------------------------------------------------ iter 12
+Action: MOVE
+Active=A, move_num=12
+Placed (1,0) and mirror (1,5)
+A=(1,0), B=(1,5)
+Next moves available: 1
+  6  24  13  19   2
+ 11   .   4  22  15
+  .   8  17   0  21
+  .   9  16   1  20
+ 10   .   5  23  14
+  7  25  12  18   3
+
+------------------------------------------------------------ iter 13
+Action: MOVE
+Active=A, move_num=13
+Placed (0,2) and mirror (0,3)
+A=(0,2), B=(0,3)
+Next moves available: 1
+  6  24  13  19   2
+ 11   .   4  22  15
+ 26   8  17   0  21
+ 27   9  16   1  20
+ 10   .   5  23  14
+  7  25  12  18   3
+
+------------------------------------------------------------ iter 14
+Action: MOVE
+Active=A, move_num=14
+Placed (1,4) and mirror (1,1)
+A=(1,4), B=(1,1)
+Next moves available: 0
+  6  24  13  19   2
+ 11  29   4  22  15
+ 26   8  17   0  21
+ 27   9  16   1  20
+ 10  28   5  23  14
+  7  25  12  18   3
+
+------------------------------------------------------------ iter 15
+Action: BACKTRACK
+move_num=14, stack depth=15
+  6  24  13  19   2
+ 11  29   4  22  15
+ 26   8  17   0  21
+ 27   9  16   1  20
+ 10  28   5  23  14
+  7  25  12  18   3
+
+------------------------------------------------------------ iter 16
+Action: SWITCH
+Switching from A to B
+Other endpoint at (0,3)
+Moves available: 1
+  6  24  13  19   2
+ 11   .   4  22  15
+ 26   8  17   0  21
+ 27   9  16   1  20
+ 10   .   5  23  14
+  7  25  12  18   3
+[DEBUG] Limit reached: 136 >= 130
+
+No solution found (0.0007s).
+
+Statistics:
+  Total move examinations : 136
+  Avg time per examination: 4.790 µs

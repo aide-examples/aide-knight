@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-FILE:       knight-08-permuted-search.py
-BASED ON:   knight-07-own-stack.py
+FILE:       knight-08-graph.py
+BASED ON:   knight-07-permuted-search.py
 PROMPT:     Produce a graphic visualisation (optionally animated)
             of the move sequence.
             Add options to define the start field and to
-            enforce a losed loop tour.
+            enforce a closed loop tour.
             - in fact these were several prompts which were slighty more precise -
 
 RESULT:     When using an assistant like Claude Code the AI will

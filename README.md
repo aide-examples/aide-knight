@@ -1,4 +1,8 @@
-# Knight's Tour
+# AIDE - Knight
+
+Find a knight's tour on a chessboard which touches each square once.
+ 
+This project is part of [AIDE examples](https://github.com/aide-examples) - a series of applications built almost completely with agentic coding.
 
 <img src="Thomasson_symmetric_closed_knights_tour.svg.png"/>
 
