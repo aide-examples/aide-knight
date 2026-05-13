@@ -1,0 +1,50 @@
+/* Knight's Tour — Phase 1: 8x8 chessboard, click reports cell coordinates.
+   Colours follow the classic chess scheme (chess.com / lichess defaults).
+   Text colour stays consistent on both field shades to avoid the visually
+   unsettled "white-on-dark / black-on-light" mix when we add tour numbers
+   in a later phase. */
+
+:root {
+  --board-cell:    60px;
+  --board-size:    calc(var(--board-cell) * 8);
+  --color-light:   #f0d9b5;
+  --color-dark:    #b58863;
+  --color-ink:     #3a2410;
+  --color-border:  #3a2410;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  color: var(--color-ink);
+  margin: 2rem;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0 0 1rem;
+}
+
+#board {
+  display: grid;
+  grid-template-columns: repeat(8, var(--board-cell));
+  grid-template-rows:    repeat(8, var(--board-cell));
+  width:  var(--board-size);
+  height: var(--board-size);
+  border: 2px solid var(--color-border);
+}
+
+.cell {
+  cursor: pointer;
+  transition: filter 0.1s;
+}
+.cell:hover { filter: brightness(1.07); }
+
+.cell.light { background: var(--color-light); }
+.cell.dark  { background: var(--color-dark);  }
+
+#status {
+  margin-top: 1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1rem;
+  color: var(--color-ink);
+}
