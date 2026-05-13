@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Springerproblem — Knight's Tour</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Springerproblem — Knight's Tour</h1>
+
+  <div id="controls">
+    <label>Breite: <input type="number" id="boardWidth" value="8" min="3" max="200"></label>
+    <label>Höhe: <input type="number" id="boardHeight" value="8" min="3" max="200"></label>
+    <label><input type="checkbox" id="showNumbers" checked> Nummern</label>
+    <label><input type="checkbox" id="showLines" checked> Linien</label>
+    <label><input type="checkbox" id="closed"> Geschlossen</label>
+    <label>Symmetrie:
+      <select id="symmetry">
+        <option value="none">Keine</option>
+        <option value="point">Punktsymmetrie</option>
+        <option value="axisH">Achse horizontal</option>
+        <option value="axisV">Achse vertikal</option>
+      </select>
+    </label>
+    <label>Heuristik:
+      <select id="heuristic">
+        <option value="warnsdorff">Warnsdorff</option>
+        <option value="outsideIn">Outside-In</option>
+        <option value="bruteForce">Brute Force</option>
+      </select>
+    </label>
+    <label>Figur:
+      <select id="moveSet">
+        <option value="1,2">Springer (1,2)</option>
+        <option value="1,4">Langspringer (1,4)</option>
+        <option value="2,3">Kamel (2,3)</option>
+        <option value="3,4">Zebra (3,4)</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="info">
+    <span>Zugversuche: <span id="attempts">—</span></span>
+    <span id="status"></span>
+  </div>
+
+  <canvas id="board-canvas"></canvas>
+
+  <script src="board.js"></script>
+  <script src="solver.js"></script>
+  <script src="ui.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
