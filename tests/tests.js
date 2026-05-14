@@ -76,27 +76,27 @@ test('Figures.computePad picks max axis distance', () => {
 
 // --- Solver static helpers ---
 
-test('Solver.isSymTypeValid truth table', () => {
-  assert(Solver.isSymTypeValid('none', 8, 8));
-  assert(!Solver.isSymTypeValid('axisV', 8, 8), '8x8 axisV must be invalid (W*H mod 4 = 0)');
-  assert(Solver.isSymTypeValid('axisV', 6, 5),  '6x5 axisV must be valid');
-  assert(Solver.isSymTypeValid('point', 8, 8),  '8x8 point must be valid');
-  assert(!Solver.isSymTypeValid('point', 6, 5), '6x5 point must be invalid (H odd)');
-  assert(Solver.isSymTypeValid('rot90', 6, 6),  '6x6 rot90 must be valid');
-  assert(!Solver.isSymTypeValid('rot90', 8, 8), '8x8 rot90 must be invalid (N mod 4 = 0)');
-  assert(!Solver.isSymTypeValid('rot90', 6, 5), 'rot90 must require square board');
+test('Sym.isValid truth table', () => {
+  assert(Sym.isValid('none', 8, 8));
+  assert(!Sym.isValid('axisV', 8, 8), '8x8 axisV must be invalid (W*H mod 4 = 0)');
+  assert(Sym.isValid('axisV', 6, 5),  '6x5 axisV must be valid');
+  assert(Sym.isValid('point', 8, 8),  '8x8 point must be valid');
+  assert(!Sym.isValid('point', 6, 5), '6x5 point must be invalid (H odd)');
+  assert(Sym.isValid('rot90', 6, 6),  '6x6 rot90 must be valid');
+  assert(!Sym.isValid('rot90', 8, 8), '8x8 rot90 must be invalid (N mod 4 = 0)');
+  assert(!Sym.isValid('rot90', 6, 5), 'rot90 must require square board');
 });
 
-test('Solver.symOrbit rot90 on 8x8 yields 4 distinct cells', () => {
-  const orb = Solver.symOrbit(0, 0, 'rot90', 8, 8);
+test('Sym.orbit rot90 on 8x8 yields 4 distinct cells', () => {
+  const orb = Sym.orbit(0, 0, 'rot90', 8, 8);
   assertEq(orb.length, 4);
   assertEq(new Set(orb.map((p) => p.join(','))).size, 4);
 });
 
-test('Solver.symTransform rot90 applied 4 times = identity', () => {
+test('Sym.transform rot90 applied 4 times = identity', () => {
   let p = [2, 3];
   for (let i = 0; i < 4; i++) {
-    p = Solver.symTransform(p[0], p[1], 'rot90', 8, 8);
+    p = Sym.transform(p[0], p[1], 'rot90', 8, 8);
   }
   assertEq(p, [2, 3]);
 });
@@ -127,7 +127,7 @@ test('Solver: 6x6 knight (0,0) rot90 Warnsdorff finds symmetric tour', () => {
   // Check rotational symmetry: path[k+9] = rot90(path[k])
   const q = 9;  // 36/4
   for (let k = 0; k < q; k++) {
-    const expected = Solver.symTransform(r.path[k][0], r.path[k][1], 'rot90', 6, 6);
+    const expected = Sym.transform(r.path[k][0], r.path[k][1], 'rot90', 6, 6);
     assertEq(r.path[k + q], expected, `rot90 invariance at k=${k}`);
   }
 });

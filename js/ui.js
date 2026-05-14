@@ -26,16 +26,20 @@ class UI {
     this.wantClosedBox   = document.getElementById('want-closed');
     this.symmetrySelect  = document.getElementById('symmetry-select');
     this.langSelect      = document.getElementById('lang-select');
+    this.timeBudgetInput = document.getElementById('time-budget-input');
+    this.stopBtn         = document.getElementById('stop-btn');
 
-    this.onDimensionChange = null;
-    this.onLangChange      = null;
-    this.onHeuristicChange = null;
-    this.onFigureChange    = null;
-    this.onMixClick        = null;
+    this.onDimensionChange  = null;
+    this.onLangChange       = null;
+    this.onTimeBudgetChange = null;
+    this.onHeuristicChange  = null;
+    this.onFigureChange     = null;
+    this.onMixClick         = null;
     this.onShowNumbersChange = null;
     this.onShowLinesChange   = null;
     this.onWantClosedChange  = null;
     this.onSymTypeChange     = null;
+    this.onStopClick         = null;
   }
 
   // Push current i18n strings to all elements with a data-i18n attribute,
@@ -58,6 +62,7 @@ class UI {
     this.langSelect.value      = s.lang;
     this.wInput.value          = s.W;
     this.hInput.value          = s.H;
+    this.timeBudgetInput.value = s.timeBudget;
     this.heuristicSelect.value = s.heuristic;
     this.figureSelect.value    = s.figure;
     this.showNumbersBox.checked = s.showNumbers;
@@ -94,6 +99,26 @@ class UI {
     this.langSelect.addEventListener('change', () => {
       if (this.onLangChange) this.onLangChange(this.langSelect.value);
     });
+
+    const readBudget = () => {
+      const v = Math.max(1, parseInt(this.timeBudgetInput.value, 10) || 10);
+      this.timeBudgetInput.value = v;
+      return v;
+    };
+    this.timeBudgetInput.addEventListener('change', () => {
+      const v = readBudget();
+      if (this.onTimeBudgetChange) this.onTimeBudgetChange(v);
+    });
+    this.timeBudgetInput.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      this.timeBudgetInput.blur();
+      if (this.onTimeBudgetChange) this.onTimeBudgetChange(readBudget());
+    });
+
+    this.stopBtn.addEventListener('click', () => {
+      if (this.onStopClick) this.onStopClick();
+    });
     this.heuristicSelect.addEventListener('change', () => {
       if (this.onHeuristicChange) this.onHeuristicChange(this.heuristicSelect.value);
     });
@@ -127,9 +152,9 @@ class UI {
   refreshSymmetryOptions() {
     const s = this.theState;
     for (const opt of this.symmetrySelect.options) {
-      opt.disabled = !Solver.isSymTypeValid(opt.value, s.W, s.H);
+      opt.disabled = !Sym.isValid(opt.value, s.W, s.H);
     }
-    if (!Solver.isSymTypeValid(s.symType, s.W, s.H)) {
+    if (!Sym.isValid(s.symType, s.W, s.H)) {
       s.symType = 'none';
       this.symmetrySelect.value = 'none';
       s.save();
@@ -154,5 +179,9 @@ class UI {
   setStatus(line1, line2) {
     if (line1 !== undefined) this.statusEl.textContent  = line1;
     if (line2 !== undefined) this.status2El.textContent = line2;
+  }
+
+  showStopButton(visible) {
+    this.stopBtn.hidden = !visible;
   }
 }

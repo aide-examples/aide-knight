@@ -3,54 +3,79 @@
 // of Singletons), wires UI events to state mutations and to Board /
 // Renderer / Solver actions, runs initial setup.
 //
-// Loaded last in index.html so all module classes are defined when the IIFE
-// runs.
+// Search execution (Phase 9):
+//   - Solver instance is kept alive across clicks. A click with the SAME
+//     start cell + same settings reuses the instance, so .search() resumes
+//     from where the last one left off (re-click = next tour; continue
+//     after a Stop / budget abort).
+//   - SearchDriver runs Solver in time-bounded chunks; the browser stays
+//     responsive, the UI shows live progress, the user can press Stop or
+//     wait for the configurable time budget.
 
 (function () {
-  // --- Service instantiation (DI entry point) ---
-  // Each service is created exactly once here; their references are then
-  // passed explicitly to whoever needs them. No `static getInstance()` —
-  // dependency graph is visible in this file.
   const theI18n     = new I18n();
   const theState    = new AppState(theI18n);
   theState.load();
-  theI18n.setLanguage(theState.lang);   // align i18n with what load picked up
+  theI18n.setLanguage(theState.lang);
 
   const theUI       = new UI(theI18n, theState);
   const theBoard    = new Board(theUI.boardEl, theI18n, theState);
   const theRenderer = new Renderer(theBoard);
+  const theDriver   = new SearchDriver(theState, theI18n, theUI, theRenderer);
+
+  // --- Solver lifecycle ---
+  let currentSolver    = null;
+  let currentSolverKey = null;
+
+  function solverKey(col, row) {
+    return JSON.stringify({
+      W: theState.W, H: theState.H, col, row,
+      heuristic: theState.heuristic,
+      closed: theState.wantClosed,
+      sym: theState.symType,
+      figure: theState.figure,
+      moves: theState.activeMoves,
+      blocked: Array.from(theState.blockedCells).sort(),
+    });
+  }
+
+  // Anything that changes the solver's setup (heuristic, figure, mix, sym,
+  // closed, blocks, board geometry) invalidates the kept-alive solver.
+  function dropSolver() {
+    theDriver.invalidate();
+    currentSolver = null;
+    currentSolverKey = null;
+  }
 
   function rebuildBoard() {
     theState.lastStart = null;
+    dropSolver();
     theBoard.setDimensions(theState.W, theState.H);
     theUI.refreshSymmetryOptions();
     theUI.setStatus(theI18n.t('clickPrompt'), '');
     theState.save();
   }
 
-  // Click handler — yields via double-rAF so the clicked coords paint to
-  // the screen before the solver blocks the main thread (JS is single-
-  // threaded; a synchronous solve() after a DOM mutation would otherwise
-  // suppress the intermediate paint).
   function onCellClick(col, row) {
     theState.lastStart = { col, row };
-    theState.save();  // keeps the URL hash in sync for replay
+    theState.save();
     theUI.setStatus(`${col} / ${row}`, '');
     theRenderer.clear();
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const result = Solver.solve(theState.W, theState.H, theState.activeMoves, col, row, {
-        heuristic: theState.heuristic,
-        closed:    theState.wantClosed,
-        sym:       theState.symType,
-        blocked:   theState.blockedCells,
-      });
-      if (result.path) {
-        theRenderer.render(result.path, !!result.closed);
-        theUI.setStatus(undefined, theI18n.t('solution', result.steps));
-      } else {
-        theUI.setStatus(undefined, theI18n.t('noSolution', result.steps));
-      }
-    }));
+
+    const key = solverKey(col, row);
+    if (key !== currentSolverKey) {
+      currentSolver = new Solver(
+        theState.W, theState.H, theState.activeMoves, col, row,
+        {
+          heuristic: theState.heuristic,
+          closed:    theState.wantClosed,
+          sym:       theState.symType,
+          blocked:   theState.blockedCells,
+        },
+      );
+      currentSolverKey = key;
+    }
+    theDriver.start(currentSolver);
   }
 
   function resolveLast() {
@@ -68,8 +93,6 @@
 
   // --- Event wiring ---
 
-  // Re-apply translations whenever the language changes (catches both the
-  // dropdown event and any future hash-driven changes).
   theI18n.subscribe(() => {
     theUI.applyI18n();
     theBoard.applyI18n();
@@ -77,7 +100,7 @@
 
   theUI.onLangChange = (code) => {
     theState.lang = code;
-    theI18n.setLanguage(code);  // triggers subscribers (incl. ui.applyI18n)
+    theI18n.setLanguage(code);
     theState.save();
   };
 
@@ -85,7 +108,6 @@
     if (W === theState.W && H === theState.H) return;
     theState.W = W;
     theState.H = H;
-    // Prune out-of-bounds blocks: cells that no longer fit on the smaller board.
     const filtered = new Set();
     for (const k of theState.blockedCells) {
       const [c, r] = k.split(',').map(Number);
@@ -96,9 +118,17 @@
     rebuildBoard();
   };
 
+  theUI.onTimeBudgetChange = (v) => {
+    theState.timeBudget = v;
+    theState.save();
+    // Don't restart an in-flight search; it'll see the new budget at the
+    // next chunk and may abort sooner.
+  };
+
   theUI.onHeuristicChange = (h) => {
     theState.heuristic = h;
     theState.save();
+    dropSolver();
     resolveLast();
   };
 
@@ -114,6 +144,7 @@
     theState.activeMoves = shuffle(theState.activeMoves);
     theState.save();
     theUI.updateMixTooltip();
+    dropSolver();
     resolveLast();
   };
 
@@ -132,6 +163,7 @@
   theUI.onWantClosedChange = (v) => {
     theState.wantClosed = v;
     theState.save();
+    dropSolver();
     resolveLast();
   };
 
@@ -139,16 +171,17 @@
     theState.symType = sym;
     theState.save();
     theUI.syncClosedUiWithSymmetry();
+    dropSolver();
     resolveLast();
   };
 
-  // Right-click / long-press / Shift+Enter on a cell toggles its blocked
-  // status. Under an active symmetry, the orbit is auto-extended so the
-  // block set stays symmetry-compatible — the user sees N cells flip at
-  // once (2 for axisV/point, 4 for rot90).
+  theUI.onStopClick = () => theDriver.stop();
+
+  // Right-click / long-press / Shift+Enter toggles cell-blocked status,
+  // orbit-extended under an active symmetry.
   function onCellBlock(col, row) {
     const orbit = theState.symType !== 'none'
-      ? Solver.symOrbit(col, row, theState.symType, theState.W, theState.H)
+      ? Sym.orbit(col, row, theState.symType, theState.W, theState.H)
       : [[col, row]];
     const key0 = `${col},${row}`;
     const wasBlocked = theState.blockedCells.has(key0);
@@ -157,26 +190,23 @@
       if (wasBlocked) theState.blockedCells.delete(key);
       else            theState.blockedCells.add(key);
     }
-    // Toggling invalidates any current tour; clear and let the user re-click.
     theState.lastStart = null;
     theState.save();
     theBoard.applyBlockClasses();
     theRenderer.clear();
+    dropSolver();
     theUI.setStatus(theI18n.t('clickPrompt'), '');
   }
 
   theBoard.setOnCellClick(onCellClick);
   theBoard.setOnCellBlock(onCellBlock);
 
-  // Click on the page title resets every setting to its default. Useful when
-  // the URL hash has accumulated a shuffle / closed / symmetry combination
-  // and the user wants a clean slate. Tooltip surfaces the affordance.
   theUI.titleEl.addEventListener('click', () => {
     Object.assign(theState, AppState.DEFAULTS);
     theState.activeMoves = Figures.generateBaseMoves(theState.figure);
     theState.lastStart = null;
     theState.blockedCells = new Set();
-    theI18n.setLanguage(theState.lang);  // triggers i18n subscribers (ui + board)
+    theI18n.setLanguage(theState.lang);
     theUI.applyState();
     rebuildBoard();
   });
@@ -186,9 +216,6 @@
   theUI.applyState();
   theUI.bindHandlers();
 
-  // First-time-from-URL: if the loaded state has a lastStart from the hash,
-  // build the board for state.W/H but DON'T null lastStart (rebuildBoard
-  // would), then auto-trigger the solve. Otherwise just rebuild normally.
   const hashStart = theState.lastStart;
   if (hashStart) {
     theBoard.setDimensions(theState.W, theState.H);

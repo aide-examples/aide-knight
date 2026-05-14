@@ -37,6 +37,11 @@ class I18n {
         cellLabel:    (c, r) => `Column ${c}, row ${r}`,
         boardLabel:   'Chess board',
         resetTooltip: 'Click to reset all settings to defaults',
+        timeBudgetLabel: 'Time budget (s)',
+        stopBtn:      'Stop',
+        searching:    (n, sec) => `Searching… ${n} steps, ${sec.toFixed(1)} s`,
+        aborted:      (sec, n) => `Aborted after ${sec.toFixed(1)} s, ${n} steps.`,
+        stopped:      (n) => `Stopped after ${n} steps.`,
       },
       de: {
         title:          "Knight's Tour",
@@ -65,6 +70,11 @@ class I18n {
         cellLabel:    (c, r) => `Spalte ${c}, Reihe ${r}`,
         boardLabel:   'Schachbrett',
         resetTooltip: 'Klicke zum Zurücksetzen aller Einstellungen',
+        timeBudgetLabel: 'Zeit-Limit (s)',
+        stopBtn:      'Stopp',
+        searching:    (n, sec) => `Suche läuft… ${n} Schritte, ${sec.toFixed(1)} s`,
+        aborted:      (sec, n) => `Abgebrochen nach ${sec.toFixed(1)} s, ${n} Schritten.`,
+        stopped:      (n) => `Gestoppt nach ${n} Schritten.`,
       },
     };
   }

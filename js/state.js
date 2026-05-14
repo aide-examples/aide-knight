@@ -33,6 +33,7 @@ class AppState {
     this.symType = 'none';
     this.lastStart = null;  // { col, row } when a tour was started; URL-only
     this.blockedCells = new Set();  // set of "col,row" strings; cells the solver must avoid
+    this.timeBudget = 10;  // seconds; the chunked driver aborts the search after this
   }
 
   static STATE_KEY = 'aide-knight-state-v1';
@@ -49,6 +50,7 @@ class AppState {
     showLines: true,
     wantClosed: false,
     symType: 'none',
+    timeBudget: 10,
   };
 
   load() {
@@ -84,6 +86,7 @@ class AppState {
           s.blockedCells.filter((k) => typeof k === 'string' && /^\d+,\d+$/.test(k))
         );
       }
+      if (Number.isInteger(s.timeBudget) && s.timeBudget >= 1) this.timeBudget = s.timeBudget;
     } catch { /* ignore — start from defaults */ }
   }
 
@@ -100,6 +103,7 @@ class AppState {
         showNumbers: this.showNumbers, showLines: this.showLines,
         wantClosed: this.wantClosed, symType: this.symType,
         blockedCells: Array.from(this.blockedCells),
+        timeBudget: this.timeBudget,
       }));
     } catch { /* ignore — non-persistent mode */ }
   }
@@ -164,6 +168,9 @@ class AppState {
       const keys = block.split(';').filter((k) => /^\d+,\d+$/.test(k));
       this.blockedCells = new Set(keys);
     }
+
+    const tb = parseInt(p.get('tb'), 10);
+    if (Number.isInteger(tb) && tb >= 1) this.timeBudget = tb;
   }
 
   _saveToHash() {
@@ -191,6 +198,7 @@ class AppState {
     if (this.blockedCells.size > 0) {
       params.set('block', Array.from(this.blockedCells).join(';'));
     }
+    if (this.timeBudget !== d.timeBudget) params.set('tb', this.timeBudget);
 
     const serialized = params.toString()
       .replace(/%2C/gi, ',')

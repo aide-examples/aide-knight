@@ -2,65 +2,29 @@
 // symmetry-aware orbit propagation.
 //
 // Two usage patterns:
-//   1. Static `Solver.solve(W, H, moves, sc, sr, opts)` — runs a fresh
-//      search to the first solution (or exhaustion). Used by tests and
-//      one-shot callers.
-//   2. Instance `new Solver(...)` + `.search()` — keeps the iterative DFS
-//      state alive across calls. Calling `.search()` again after a
-//      previous solution does a single backtrack and continues, yielding
-//      the NEXT solution. This is the "re-click = next tour" mechanism.
+//   1. Static `Solver.solve(W, H, moves, sc, sr, opts)` — runs to the first
+//      solution (or exhaustion) synchronously. For tests and replay scripts.
+//   2. Instance `new Solver(...)` + `.search(maxMs)` — chunked execution
+//      bounded by wall-clock time. Calling .search() again after a 'found'
+//      result silently backtracks one step and continues, yielding the
+//      NEXT solution. This is the "re-click = next tour" mechanism.
 //
-// `steps` accumulates across `.search()` calls — re-clicks keep counting.
+// Search outcomes from .search():
+//   { kind: 'found',     path, steps, closed } — tour found this chunk
+//   { kind: 'exhausted', steps }               — search space empty
+//   { kind: 'timeout',   steps }               — maxMs reached, resumable
+//
+// `steps` accumulates across all .search() calls on this instance.
 
 class Solver {
-  static SYM_ORBIT_SIZE = { none: 1, axisV: 2, point: 2, rot90: 4 };
-
-  // Validity of a symmetry on a given board geometry. See PROTOKOLL.md
-  // Phase 7 for the colour-parity derivation.
-  static isSymTypeValid(t, W, H) {
-    if (t === 'none')  return true;
-    if (t === 'axisV') return W % 2 === 0 && (W * H) % 4 === 2;
-    if (t === 'point') return W % 2 === 0 && H % 2 === 0;
-    if (t === 'rot90') return W === H && W % 2 === 0 && (W * W) % 8 === 4;
-    return false;
-  }
-
-  static symOrbit(c, r, t, W, H) {
-    if (t === 'axisV') return [[c, r], [W - 1 - c, r]];
-    if (t === 'point') return [[c, r], [W - 1 - c, H - 1 - r]];
-    if (t === 'rot90') {
-      const N = W;
-      return [[c, r], [N - 1 - r, c], [N - 1 - c, N - 1 - r], [r, N - 1 - c]];
-    }
-    return [[c, r]];
-  }
-
-  static symTransform(c, r, t, W, H) {
-    if (t === 'axisV') return [W - 1 - c, r];
-    if (t === 'point') return [W - 1 - c, H - 1 - r];
-    if (t === 'rot90') return [W - 1 - r, c];
-    return [c, r];
-  }
-
-  static expandTour(quarter, sym, W, H) {
-    if (sym === 'none') return quarter.slice();
-    const full = quarter.slice();
-    if (sym === 'axisV') {
-      for (const [c, r] of quarter) full.push([W - 1 - c, r]);
-    } else if (sym === 'point') {
-      for (const [c, r] of quarter) full.push([W - 1 - c, H - 1 - r]);
-    } else if (sym === 'rot90') {
-      const N = W;
-      for (const [c, r] of quarter) full.push([N - 1 - r, c]);
-      for (const [c, r] of quarter) full.push([N - 1 - c, N - 1 - r]);
-      for (const [c, r] of quarter) full.push([r, N - 1 - c]);
-    }
-    return full;
-  }
-
-  // Static convenience: build a fresh solver and run it to the first result.
+  // Static convenience: run a fresh solver to completion. Used by tests.
   static solve(W, H, moves, startCol, startRow, opts = {}) {
-    return new Solver(W, H, moves, startCol, startRow, opts).search();
+    const s = new Solver(W, H, moves, startCol, startRow, opts);
+    while (true) {
+      const r = s.search(Infinity);
+      if (r.kind === 'found')     return { path: r.path, steps: r.steps, closed: r.closed };
+      if (r.kind === 'exhausted') return { path: null, steps: r.steps };
+    }
   }
 
   constructor(W, H, moves, startCol, startRow, opts = {}) {
@@ -74,9 +38,9 @@ class Solver {
     this.wantsClosure = this.closed || this.sym !== 'none';
 
     this.steps = 0;
-    this.done = false;       // true once the search space is exhausted
-    this.foundLast = false;  // true while `path` is a complete tour just returned
-    this.invalid = false;    // sym not supported / blocked count incompat
+    this.done = false;
+    this.foundLast = false;
+    this.invalid = false;
     this.path = null;
     this.stack = null;
     this.visited = null;
@@ -88,12 +52,11 @@ class Solver {
 
   _init() {
     const W = this.W, H = this.H, moves = this.moves, sym = this.sym;
-
-    if (!Solver.isSymTypeValid(sym, W, H)) { this.invalid = true; this.done = true; return; }
+    if (!Sym.isValid(sym, W, H)) { this.invalid = true; this.done = true; return; }
 
     this.pad = Figures.computePad(moves);
     this.stride = W + 2 * this.pad;
-    this.orbitSize = Solver.SYM_ORBIT_SIZE[sym];
+    this.orbitSize = Sym.SIZES[sym];
     this.total = W * H - this.blocked.size;
     if (this.total % this.orbitSize !== 0) { this.invalid = true; this.done = true; return; }
     this.quarterLen = this.total / this.orbitSize;
@@ -119,7 +82,7 @@ class Solver {
     this.startNbrs   = new Uint8Array(stride * (H + 2 * pad));
     this.closureBias = new Uint8Array(stride * (H + 2 * pad));
     if (this.wantsClosure) {
-      const bridge = Solver.symTransform(this.startCol, this.startRow, sym, W, H);
+      const bridge = Sym.transform(this.startCol, this.startRow, sym, W, H);
       for (const [dc, dr] of moves) {
         const idx = this.at(bridge[0] + dc, bridge[1] + dr);
         if (visited[idx] === -1) continue;
@@ -131,7 +94,7 @@ class Solver {
           if (!this.startNbrs[i]) continue;
           const r = Math.floor(i / stride) - pad;
           const c = (i % stride) - pad;
-          const orb = Solver.symOrbit(c, r, sym, W, H);
+          const orb = Sym.orbit(c, r, sym, W, H);
           for (let j = 0; j < orb.length; j++) {
             const oidx = this.at(orb[j][0], orb[j][1]);
             if (visited[oidx] === -1) continue;
@@ -141,8 +104,7 @@ class Solver {
       }
     }
 
-    // Place start + orbit
-    const startOrbit = Solver.symOrbit(this.startCol, this.startRow, sym, W, H);
+    const startOrbit = Sym.orbit(this.startCol, this.startRow, sym, W, H);
     for (let i = 0; i < startOrbit.length; i++) {
       if (visited[this.at(startOrbit[i][0], startOrbit[i][1])] !== 0) {
         this.invalid = true; this.done = true; return;
@@ -157,35 +119,44 @@ class Solver {
 
   at(col, row) { return (row + this.pad) * this.stride + (col + this.pad); }
 
-  // Find next solution. If a previous call returned a tour, backtracks one
-  // cell first so the next iteration explores a different branch. Returns
-  // { path, steps, closed } on success, { path: null, steps } on exhaustion.
-  // `steps` is cumulative across all .search() calls on this instance.
-  search() {
-    if (this.invalid || this.done) return { path: null, steps: this.steps };
+  // Time-check granularity (1000 inner iterations between Date.now polls).
+  static CHECK_EVERY = 1000;
+
+  search(maxMs) {
+    if (this.invalid || this.done) return { kind: 'exhausted', steps: this.steps };
     if (this.foundLast) {
       this._backtrackOne();
       this.foundLast = false;
     }
+    const start = Date.now();
+    let checkCounter = 0;
+
     while (this.stack.length > 0) {
+      if (++checkCounter === Solver.CHECK_EVERY) {
+        checkCounter = 0;
+        if (Date.now() - start >= maxMs) {
+          return { kind: 'timeout', steps: this.steps };
+        }
+      }
+
       if (this.path.length === this.quarterLen) {
         if (!this.wantsClosure) {
           this.foundLast = true;
           return {
-            path: Solver.expandTour(this.path, this.sym, this.W, this.H),
-            steps: this.steps, closed: false,
+            kind: 'found', steps: this.steps, closed: false,
+            path: Sym.expand(this.path, this.sym, this.W, this.H),
           };
         }
         const last = this.path[this.quarterLen - 1];
         if (this.startNbrs[this.at(last[0], last[1])]) {
           this.foundLast = true;
           return {
-            path: Solver.expandTour(this.path, this.sym, this.W, this.H),
-            steps: this.steps, closed: true,
+            kind: 'found', steps: this.steps, closed: true,
+            path: Sym.expand(this.path, this.sym, this.W, this.H),
           };
         }
-        // Not closed: top frame has empty candidates (path covers all reachable
-        // cells), so the next iteration will trigger the exhausted backtrack.
+        // Not closed: top frame has empty candidates so next iteration
+        // triggers the normal exhausted-frame backtrack.
       }
 
       const top = this.stack[this.stack.length - 1];
@@ -196,7 +167,7 @@ class Solver {
 
       const [nc, nr] = top.candidates[top.nextIdx++];
       this.steps++;
-      const orb = Solver.symOrbit(nc, nr, this.sym, this.W, this.H);
+      const orb = Sym.orbit(nc, nr, this.sym, this.W, this.H);
       for (let i = 0; i < orb.length; i++) {
         this.visited[this.at(orb[i][0], orb[i][1])] = 1;
       }
@@ -205,13 +176,13 @@ class Solver {
     }
 
     this.done = true;
-    return { path: null, steps: this.steps };
+    return { kind: 'exhausted', steps: this.steps };
   }
 
   _backtrackOne() {
     if (this.path.length === 0) return;
     const popped = this.path.pop();
-    const orb = Solver.symOrbit(popped[0], popped[1], this.sym, this.W, this.H);
+    const orb = Sym.orbit(popped[0], popped[1], this.sym, this.W, this.H);
     for (let i = 0; i < orb.length; i++) {
       this.visited[this.at(orb[i][0], orb[i][1])] = 0;
     }
@@ -228,7 +199,7 @@ class Solver {
       const nc = col + dc, nr = row + dr;
       if (visited[this.at(nc, nr)] !== 0) continue;
       if (sym !== 'none') {
-        const orb = Solver.symOrbit(nc, nr, sym, W, H);
+        const orb = Sym.orbit(nc, nr, sym, W, H);
         let collision = false;
         for (let j = 1; j < orb.length; j++) {
           if (visited[this.at(orb[j][0], orb[j][1])] !== 0) { collision = true; break; }
