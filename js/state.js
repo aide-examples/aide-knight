@@ -1,5 +1,10 @@
 // AppState — single source of truth for all app settings.
 //
+// Instantiated once at the entry point as `const theState = new AppState(theI18n)`
+// and passed by reference to consumers (DI, not Singleton — see T_CONTRACT.md
+// section 1). The injected i18n is used only for validating which language
+// codes are accepted from storage / URL.
+//
 // Persistence layers:
 //   - localStorage (durable across sessions): everything except lastStart
 //   - URL hash (deep-linkable, replay-friendly): everything *including*
@@ -12,11 +17,10 @@
 // load() reads localStorage first, then URL hash overrides; save() updates
 // both. lastStart in localStorage would auto-fire a solve after restart,
 // which is undesired — but in the URL it is the whole point.
-//
-// Singleton: AppState.getInstance().
 
 class AppState {
-  constructor() {
+  constructor(theI18n) {
+    this.theI18n = theI18n;
     this.lang = 'en';       // i18n language code; visible switcher arrives in B3
     this.W = 8;
     this.H = 8;
@@ -47,11 +51,6 @@ class AppState {
     symType: 'none',
   };
 
-  static getInstance() {
-    if (!AppState._instance) AppState._instance = new AppState();
-    return AppState._instance;
-  }
-
   load() {
     this._loadFromStorage();
     this._loadFromHash();
@@ -67,7 +66,7 @@ class AppState {
       const raw = localStorage.getItem(AppState.STATE_KEY);
       if (!raw) return;
       const s = JSON.parse(raw);
-      if (I18n.getInstance().availableLanguages().includes(s.lang)) this.lang = s.lang;
+      if (this.theI18n.availableLanguages().includes(s.lang)) this.lang = s.lang;
       if (Number.isInteger(s.W) && s.W >= 1) this.W = s.W;
       if (Number.isInteger(s.H) && s.H >= 1) this.H = s.H;
       if (['warnsdorff', 'outsideIn', 'bruteForce'].includes(s.heuristic)) {
@@ -111,7 +110,7 @@ class AppState {
     const p = new URLSearchParams(hash);
 
     const lang = p.get('lang');
-    if (lang && I18n.getInstance().availableLanguages().includes(lang)) this.lang = lang;
+    if (lang && this.theI18n.availableLanguages().includes(lang)) this.lang = lang;
 
     const wv = parseInt(p.get('W'), 10);
     if (Number.isInteger(wv) && wv >= 1) this.W = wv;

@@ -6,8 +6,10 @@
 // display CSS variables. Keyboard navigation on cells is added in B4 (a11y).
 
 class Board {
-  constructor(boardEl) {
+  constructor(boardEl, theI18n, theState) {
     this.boardEl = boardEl;
+    this.theI18n = theI18n;
+    this.theState = theState;
     this.boardEl.setAttribute('role', 'grid');
     this.W = 0;
     this.H = 0;
@@ -36,7 +38,7 @@ class Board {
   }
 
   applyVisibility() {
-    const state = AppState.getInstance();
+    const state = this.theState;
     const fontPx = this.currentCellPx * 0.32;
     const numbersUsable = state.showNumbers && fontPx >= Board.NUM_FONT_MIN_PX;
     document.documentElement.style.setProperty('--num-display', numbersUsable ? 'flex' : 'none');
@@ -46,7 +48,7 @@ class Board {
   // Re-applies translated aria-labels on the board and all cells.
   // Called from app.js when the language changes.
   applyI18n() {
-    const i18n = I18n.getInstance();
+    const i18n = this.theI18n;
     this.boardEl.setAttribute('aria-label', i18n.t('boardLabel'));
     for (const cell of this.cellByIdx) {
       if (!cell) continue;
@@ -61,20 +63,20 @@ class Board {
     this.boardEl.innerHTML = '';
     this.boardEl.setAttribute('aria-rowcount', this.H);
     this.boardEl.setAttribute('aria-colcount', this.W);
-    this.boardEl.setAttribute('aria-label', I18n.getInstance().t('boardLabel'));
+    this.boardEl.setAttribute('aria-label', this.theI18n.t('boardLabel'));
     this.cellByIdx = new Array(this.W * this.H);
 
     // Roving tabindex: exactly one cell is focusable (tabindex=0); arrows
     // move focus among cells and adjust the tabindex accordingly. Initial
     // tab target: state.lastStart if set, else top-left (col 0, row H-1).
-    const state = AppState.getInstance();
+    const state = this.theState;
     const focusCell = (state.lastStart &&
                       state.lastStart.col >= 0 && state.lastStart.col < this.W &&
                       state.lastStart.row >= 0 && state.lastStart.row < this.H)
       ? state.lastStart
       : { col: 0, row: this.H - 1 };
 
-    const i18n = I18n.getInstance();
+    const i18n = this.theI18n;
     const frag = document.createDocumentFragment();
     for (let row = this.H - 1; row >= 0; row--) {
       for (let col = 0; col < this.W; col++) {
@@ -194,7 +196,7 @@ class Board {
   // Reflect AppState.blockedCells onto the .blocked CSS class. Idempotent;
   // safe to call after any block-set mutation or board rebuild.
   applyBlockClasses() {
-    const blocked = AppState.getInstance().blockedCells;
+    const blocked = this.theState.blockedCells;
     for (const cell of this.cellByIdx) {
       if (!cell) continue;
       const key = `${cell.dataset.col},${cell.dataset.row}`;

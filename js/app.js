@@ -1,25 +1,31 @@
-// App — orchestration. Instantiates singletons, wires UI events to state
-// mutations and to Board/Renderer/Solver actions, runs initial setup.
+// App — orchestration. Instantiates the application's services at the
+// entry point ('theX' convention — see T_CONTRACT.md section 1: DI instead
+// of Singletons), wires UI events to state mutations and to Board /
+// Renderer / Solver actions, runs initial setup.
 //
 // Loaded last in index.html so all module classes are defined when the IIFE
 // runs.
 
 (function () {
-  const i18n  = I18n.getInstance();
-  const state = AppState.getInstance();
-  state.load();
-  i18n.setLanguage(state.lang);  // sync I18n to whatever load picked
+  // --- Service instantiation (DI entry point) ---
+  // Each service is created exactly once here; their references are then
+  // passed explicitly to whoever needs them. No `static getInstance()` —
+  // dependency graph is visible in this file.
+  const theI18n     = new I18n();
+  const theState    = new AppState(theI18n);
+  theState.load();
+  theI18n.setLanguage(theState.lang);   // align i18n with what load picked up
 
-  const ui       = new UI();
-  const board    = new Board(ui.boardEl);
-  const renderer = new Renderer(board);
+  const theUI       = new UI(theI18n, theState);
+  const theBoard    = new Board(theUI.boardEl, theI18n, theState);
+  const theRenderer = new Renderer(theBoard);
 
   function rebuildBoard() {
-    state.lastStart = null;
-    board.setDimensions(state.W, state.H);
-    ui.refreshSymmetryOptions();
-    ui.setStatus(i18n.t('clickPrompt'), '');
-    state.save();
+    theState.lastStart = null;
+    theBoard.setDimensions(theState.W, theState.H);
+    theUI.refreshSymmetryOptions();
+    theUI.setStatus(theI18n.t('clickPrompt'), '');
+    theState.save();
   }
 
   // Click handler — yields via double-rAF so the clicked coords paint to
@@ -27,28 +33,28 @@
   // threaded; a synchronous solve() after a DOM mutation would otherwise
   // suppress the intermediate paint).
   function onCellClick(col, row) {
-    state.lastStart = { col, row };
-    state.save();  // keeps the URL hash in sync for replay
-    ui.setStatus(`${col} / ${row}`, '');
-    renderer.clear();
+    theState.lastStart = { col, row };
+    theState.save();  // keeps the URL hash in sync for replay
+    theUI.setStatus(`${col} / ${row}`, '');
+    theRenderer.clear();
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      const result = Solver.solve(state.W, state.H, state.activeMoves, col, row, {
-        heuristic: state.heuristic,
-        closed:    state.wantClosed,
-        sym:       state.symType,
-        blocked:   state.blockedCells,
+      const result = Solver.solve(theState.W, theState.H, theState.activeMoves, col, row, {
+        heuristic: theState.heuristic,
+        closed:    theState.wantClosed,
+        sym:       theState.symType,
+        blocked:   theState.blockedCells,
       });
       if (result.path) {
-        renderer.render(result.path, !!result.closed);
-        ui.setStatus(undefined, i18n.t('solution', result.steps));
+        theRenderer.render(result.path, !!result.closed);
+        theUI.setStatus(undefined, theI18n.t('solution', result.steps));
       } else {
-        ui.setStatus(undefined, i18n.t('noSolution', result.steps));
+        theUI.setStatus(undefined, theI18n.t('noSolution', result.steps));
       }
     }));
   }
 
   function resolveLast() {
-    if (state.lastStart) onCellClick(state.lastStart.col, state.lastStart.row);
+    if (theState.lastStart) onCellClick(theState.lastStart.col, theState.lastStart.row);
   }
 
   function shuffle(arr) {
@@ -64,75 +70,75 @@
 
   // Re-apply translations whenever the language changes (catches both the
   // dropdown event and any future hash-driven changes).
-  i18n.subscribe(() => {
-    ui.applyI18n();
-    board.applyI18n();
+  theI18n.subscribe(() => {
+    theUI.applyI18n();
+    theBoard.applyI18n();
   });
 
-  ui.onLangChange = (code) => {
-    state.lang = code;
-    i18n.setLanguage(code);  // triggers subscribers (incl. ui.applyI18n)
-    state.save();
+  theUI.onLangChange = (code) => {
+    theState.lang = code;
+    theI18n.setLanguage(code);  // triggers subscribers (incl. ui.applyI18n)
+    theState.save();
   };
 
-  ui.onDimensionChange = (W, H) => {
-    if (W === state.W && H === state.H) return;
-    state.W = W;
-    state.H = H;
+  theUI.onDimensionChange = (W, H) => {
+    if (W === theState.W && H === theState.H) return;
+    theState.W = W;
+    theState.H = H;
     // Prune out-of-bounds blocks: cells that no longer fit on the smaller board.
     const filtered = new Set();
-    for (const k of state.blockedCells) {
+    for (const k of theState.blockedCells) {
       const [c, r] = k.split(',').map(Number);
       if (c >= 0 && c < W && r >= 0 && r < H) filtered.add(k);
     }
-    state.blockedCells = filtered;
-    state.save();
+    theState.blockedCells = filtered;
+    theState.save();
     rebuildBoard();
   };
 
-  ui.onHeuristicChange = (h) => {
-    state.heuristic = h;
-    state.save();
+  theUI.onHeuristicChange = (h) => {
+    theState.heuristic = h;
+    theState.save();
     resolveLast();
   };
 
-  ui.onFigureChange = (f) => {
-    state.figure = f;
-    state.activeMoves = Figures.generateBaseMoves(f);
-    state.save();
-    ui.updateMixTooltip();
+  theUI.onFigureChange = (f) => {
+    theState.figure = f;
+    theState.activeMoves = Figures.generateBaseMoves(f);
+    theState.save();
+    theUI.updateMixTooltip();
     rebuildBoard();
   };
 
-  ui.onMixClick = () => {
-    state.activeMoves = shuffle(state.activeMoves);
-    state.save();
-    ui.updateMixTooltip();
+  theUI.onMixClick = () => {
+    theState.activeMoves = shuffle(theState.activeMoves);
+    theState.save();
+    theUI.updateMixTooltip();
     resolveLast();
   };
 
-  ui.onShowNumbersChange = (v) => {
-    state.showNumbers = v;
-    state.save();
-    board.applyVisibility();
+  theUI.onShowNumbersChange = (v) => {
+    theState.showNumbers = v;
+    theState.save();
+    theBoard.applyVisibility();
   };
 
-  ui.onShowLinesChange = (v) => {
-    state.showLines = v;
-    state.save();
-    board.applyVisibility();
+  theUI.onShowLinesChange = (v) => {
+    theState.showLines = v;
+    theState.save();
+    theBoard.applyVisibility();
   };
 
-  ui.onWantClosedChange = (v) => {
-    state.wantClosed = v;
-    state.save();
+  theUI.onWantClosedChange = (v) => {
+    theState.wantClosed = v;
+    theState.save();
     resolveLast();
   };
 
-  ui.onSymTypeChange = (sym) => {
-    state.symType = sym;
-    state.save();
-    ui.syncClosedUiWithSymmetry();
+  theUI.onSymTypeChange = (sym) => {
+    theState.symType = sym;
+    theState.save();
+    theUI.syncClosedUiWithSymmetry();
     resolveLast();
   };
 
@@ -141,53 +147,53 @@
   // block set stays symmetry-compatible — the user sees N cells flip at
   // once (2 for axisV/point, 4 for rot90).
   function onCellBlock(col, row) {
-    const orbit = state.symType !== 'none'
-      ? Solver.symOrbit(col, row, state.symType, state.W, state.H)
+    const orbit = theState.symType !== 'none'
+      ? Solver.symOrbit(col, row, theState.symType, theState.W, theState.H)
       : [[col, row]];
     const key0 = `${col},${row}`;
-    const wasBlocked = state.blockedCells.has(key0);
+    const wasBlocked = theState.blockedCells.has(key0);
     for (const [c, r] of orbit) {
       const key = `${c},${r}`;
-      if (wasBlocked) state.blockedCells.delete(key);
-      else            state.blockedCells.add(key);
+      if (wasBlocked) theState.blockedCells.delete(key);
+      else            theState.blockedCells.add(key);
     }
     // Toggling invalidates any current tour; clear and let the user re-click.
-    state.lastStart = null;
-    state.save();
-    board.applyBlockClasses();
-    renderer.clear();
-    ui.setStatus(i18n.t('clickPrompt'), '');
+    theState.lastStart = null;
+    theState.save();
+    theBoard.applyBlockClasses();
+    theRenderer.clear();
+    theUI.setStatus(theI18n.t('clickPrompt'), '');
   }
 
-  board.setOnCellClick(onCellClick);
-  board.setOnCellBlock(onCellBlock);
+  theBoard.setOnCellClick(onCellClick);
+  theBoard.setOnCellBlock(onCellBlock);
 
   // Click on the page title resets every setting to its default. Useful when
   // the URL hash has accumulated a shuffle / closed / symmetry combination
   // and the user wants a clean slate. Tooltip surfaces the affordance.
-  ui.titleEl.addEventListener('click', () => {
-    Object.assign(state, AppState.DEFAULTS);
-    state.activeMoves = Figures.generateBaseMoves(state.figure);
-    state.lastStart = null;
-    state.blockedCells = new Set();
-    i18n.setLanguage(state.lang);  // triggers i18n subscribers (ui + board)
-    ui.applyState();
+  theUI.titleEl.addEventListener('click', () => {
+    Object.assign(theState, AppState.DEFAULTS);
+    theState.activeMoves = Figures.generateBaseMoves(theState.figure);
+    theState.lastStart = null;
+    theState.blockedCells = new Set();
+    theI18n.setLanguage(theState.lang);  // triggers i18n subscribers (ui + board)
+    theUI.applyState();
     rebuildBoard();
   });
 
   // --- Initial setup ---
-  ui.applyI18n();
-  ui.applyState();
-  ui.bindHandlers();
+  theUI.applyI18n();
+  theUI.applyState();
+  theUI.bindHandlers();
 
   // First-time-from-URL: if the loaded state has a lastStart from the hash,
   // build the board for state.W/H but DON'T null lastStart (rebuildBoard
   // would), then auto-trigger the solve. Otherwise just rebuild normally.
-  const hashStart = state.lastStart;
+  const hashStart = theState.lastStart;
   if (hashStart) {
-    board.setDimensions(state.W, state.H);
-    ui.refreshSymmetryOptions();
-    ui.setStatus(i18n.t('clickPrompt'), '');
+    theBoard.setDimensions(theState.W, theState.H);
+    theUI.refreshSymmetryOptions();
+    theUI.setStatus(theI18n.t('clickPrompt'), '');
     onCellClick(hashStart.col, hashStart.row);
   } else {
     rebuildBoard();

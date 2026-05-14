@@ -9,7 +9,9 @@
 //    syncClosedUiWithSymmetry
 
 class UI {
-  constructor() {
+  constructor(theI18n, theState) {
+    this.theI18n = theI18n;
+    this.theState = theState;
     this.boardEl         = document.getElementById('board');
     this.titleEl         = document.getElementById('title');
     this.statusEl        = document.getElementById('status');
@@ -40,7 +42,7 @@ class UI {
   // plus the document title. The title bar is not a data-i18n element so
   // we set it explicitly.
   applyI18n() {
-    const t = I18n.getInstance();
+    const t = this.theI18n;
     document.title = t.t('title');
     for (const el of document.querySelectorAll('[data-i18n]')) {
       el.textContent = t.t(el.dataset.i18n);
@@ -52,7 +54,7 @@ class UI {
   }
 
   applyState() {
-    const s = AppState.getInstance();
+    const s = this.theState;
     this.langSelect.value      = s.lang;
     this.wInput.value          = s.W;
     this.hInput.value          = s.H;
@@ -116,14 +118,14 @@ class UI {
   }
 
   updateMixTooltip() {
-    const s = AppState.getInstance();
+    const s = this.theState;
     this.mixBtn.title = s.activeMoves.map(([dx, dy]) => `(${dx},${dy})`).join('  ');
   }
 
   // Disable symmetry options that aren't valid for the current W/H. If the
   // current selection becomes invalid, fall back to 'none'.
   refreshSymmetryOptions() {
-    const s = AppState.getInstance();
+    const s = this.theState;
     for (const opt of this.symmetrySelect.options) {
       opt.disabled = !Solver.isSymTypeValid(opt.value, s.W, s.H);
     }
@@ -139,7 +141,7 @@ class UI {
   // checkbox to checked + disabled. The underlying state.wantClosed value
   // is preserved and restored when symmetry returns to 'none'.
   syncClosedUiWithSymmetry() {
-    const s = AppState.getInstance();
+    const s = this.theState;
     if (s.symType !== 'none') {
       this.wantClosedBox.checked  = true;
       this.wantClosedBox.disabled = true;

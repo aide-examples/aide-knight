@@ -1,6 +1,8 @@
 // I18n — central translation store and language management.
 //
-// Singleton: I18n.getInstance(). To add a language, add an entry to STRINGS;
+// Instantiated exactly once at the entry point (`const theI18n = new I18n()`)
+// and passed by reference to every consumer (DI, not Singleton — see
+// T_CONTRACT.md section 1). To add a language, add an entry to STRINGS;
 // to switch at runtime, call .setLanguage(code). Subscribers are notified.
 
 class I18n {
@@ -65,11 +67,6 @@ class I18n {
         resetTooltip: 'Klicke zum Zurücksetzen aller Einstellungen',
       },
     };
-  }
-
-  static getInstance() {
-    if (!I18n._instance) I18n._instance = new I18n();
-    return I18n._instance;
   }
 
   setLanguage(code) {

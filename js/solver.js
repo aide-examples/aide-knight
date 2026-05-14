@@ -1,19 +1,22 @@
-// Solver — pure iterative DFS with heuristic ordering, closure bias,
-// and symmetry-aware orbit propagation.
+// Solver — iterative DFS with heuristic ordering, closure bias, and
+// symmetry-aware orbit propagation.
 //
-// All methods are static — Solver.solve(W, H, moves, sc, sr, opts) is the
-// entry point. No DOM, no global state. The result is { path, steps, closed }
-// where path is the full tour (orbit-expanded if a symmetry is active),
-// steps counts forward attempts AND backtracks, and closed is whether the
-// closure check at the end succeeded.
+// Two usage patterns:
+//   1. Static `Solver.solve(W, H, moves, sc, sr, opts)` — runs a fresh
+//      search to the first solution (or exhaustion). Used by tests and
+//      one-shot callers.
+//   2. Instance `new Solver(...)` + `.search()` — keeps the iterative DFS
+//      state alive across calls. Calling `.search()` again after a
+//      previous solution does a single backtrack and continues, yielding
+//      the NEXT solution. This is the "re-click = next tour" mechanism.
+//
+// `steps` accumulates across `.search()` calls — re-clicks keep counting.
 
 class Solver {
   static SYM_ORBIT_SIZE = { none: 1, axisV: 2, point: 2, rot90: 4 };
 
-  // Validity of a symmetry on a given board geometry. Stricter than just
-  // "no axis cell" — also includes the colour-parity condition that ensures
-  // the shift-by-quarter structure is compatible with the move set. See
-  // PROTOKOLL.md Phase 7 for the derivation.
+  // Validity of a symmetry on a given board geometry. See PROTOKOLL.md
+  // Phase 7 for the colour-parity derivation.
   static isSymTypeValid(t, W, H) {
     if (t === 'none')  return true;
     if (t === 'axisV') return W % 2 === 0 && (W * H) % 4 === 2;
@@ -40,7 +43,7 @@ class Solver {
   }
 
   static expandTour(quarter, sym, W, H) {
-    if (sym === 'none') return quarter;
+    if (sym === 'none') return quarter.slice();
     const full = quarter.slice();
     if (sym === 'axisV') {
       for (const [c, r] of quarter) full.push([W - 1 - c, r]);
@@ -55,29 +58,47 @@ class Solver {
     return full;
   }
 
+  // Static convenience: build a fresh solver and run it to the first result.
   static solve(W, H, moves, startCol, startRow, opts = {}) {
-    const heuristicNow = opts.heuristic || 'warnsdorff';
-    const closed = !!opts.closed;
-    const sym = opts.sym || 'none';
-    const blocked = (opts.blocked instanceof Set) ? opts.blocked : new Set();
-    const wantsClosure = closed || sym !== 'none';
+    return new Solver(W, H, moves, startCol, startRow, opts).search();
+  }
 
-    if (!Solver.isSymTypeValid(sym, W, H)) {
-      return { path: null, steps: 0 };
-    }
+  constructor(W, H, moves, startCol, startRow, opts = {}) {
+    this.W = W; this.H = H;
+    this.moves = moves;
+    this.startCol = startCol; this.startRow = startRow;
+    this.heuristic = opts.heuristic || 'warnsdorff';
+    this.closed = !!opts.closed;
+    this.sym = opts.sym || 'none';
+    this.blocked = (opts.blocked instanceof Set) ? opts.blocked : new Set();
+    this.wantsClosure = this.closed || this.sym !== 'none';
 
-    const pad = Figures.computePad(moves);
-    const stride = W + 2 * pad;
-    const orbitSize = Solver.SYM_ORBIT_SIZE[sym];
-    // Tour visits every non-blocked cell once. quarterLen is the count of
-    // explicit-search cells; under symmetry, each placement fills orbitSize
-    // cells implicitly, so total must be divisible by orbitSize.
-    const total = W * H - blocked.size;
-    if (total % orbitSize !== 0) {
-      return { path: null, steps: 0 };
-    }
-    const quarterLen = total / orbitSize;
+    this.steps = 0;
+    this.done = false;       // true once the search space is exhausted
+    this.foundLast = false;  // true while `path` is a complete tour just returned
+    this.invalid = false;    // sym not supported / blocked count incompat
+    this.path = null;
+    this.stack = null;
+    this.visited = null;
+    this.startNbrs = null;
+    this.closureBias = null;
 
+    this._init();
+  }
+
+  _init() {
+    const W = this.W, H = this.H, moves = this.moves, sym = this.sym;
+
+    if (!Solver.isSymTypeValid(sym, W, H)) { this.invalid = true; this.done = true; return; }
+
+    this.pad = Figures.computePad(moves);
+    this.stride = W + 2 * this.pad;
+    this.orbitSize = Solver.SYM_ORBIT_SIZE[sym];
+    this.total = W * H - this.blocked.size;
+    if (this.total % this.orbitSize !== 0) { this.invalid = true; this.done = true; return; }
+    this.quarterLen = this.total / this.orbitSize;
+
+    const stride = this.stride, pad = this.pad;
     const visited = new Int32Array(stride * (H + 2 * pad));
     for (let r = 0; r < H + 2 * pad; r++) {
       for (let c = 0; c < W + 2 * pad; c++) {
@@ -86,134 +107,161 @@ class Solver {
         }
       }
     }
-    // Pre-mark user-blocked cells as -1 — pickCandidates filters them out
-    // for free since they fail the visited === 0 test, same as padding cells.
-    for (const key of blocked) {
+    for (const key of this.blocked) {
       const [c, r] = key.split(',').map((s) => parseInt(s, 10));
       if (Number.isInteger(c) && Number.isInteger(r) &&
           c >= 0 && c < W && r >= 0 && r < H) {
         visited[(r + pad) * stride + (c + pad)] = -1;
       }
     }
-    const at = (col, row) => (row + pad) * stride + (col + pad);
+    this.visited = visited;
 
-    const bridge = wantsClosure ? Solver.symTransform(startCol, startRow, sym, W, H) : null;
-    const startNbrs   = new Uint8Array(stride * (H + 2 * pad));
-    const closureBias = new Uint8Array(stride * (H + 2 * pad));
-    if (wantsClosure) {
+    this.startNbrs   = new Uint8Array(stride * (H + 2 * pad));
+    this.closureBias = new Uint8Array(stride * (H + 2 * pad));
+    if (this.wantsClosure) {
+      const bridge = Solver.symTransform(this.startCol, this.startRow, sym, W, H);
       for (const [dc, dr] of moves) {
-        const idx = at(bridge[0] + dc, bridge[1] + dr);
+        const idx = this.at(bridge[0] + dc, bridge[1] + dr);
         if (visited[idx] === -1) continue;
-        startNbrs[idx] = 1;
-        closureBias[idx] = 1;
+        this.startNbrs[idx] = 1;
+        this.closureBias[idx] = 1;
       }
       if (sym !== 'none') {
-        for (let i = 0; i < startNbrs.length; i++) {
-          if (!startNbrs[i]) continue;
+        for (let i = 0; i < this.startNbrs.length; i++) {
+          if (!this.startNbrs[i]) continue;
           const r = Math.floor(i / stride) - pad;
           const c = (i % stride) - pad;
           const orb = Solver.symOrbit(c, r, sym, W, H);
           for (let j = 0; j < orb.length; j++) {
-            const oidx = at(orb[j][0], orb[j][1]);
+            const oidx = this.at(orb[j][0], orb[j][1]);
             if (visited[oidx] === -1) continue;
-            closureBias[oidx] = 1;
+            this.closureBias[oidx] = 1;
           }
         }
       }
-    }
-    const CLOSURE_PENALTY = 1000;
-
-    const cx = (W - 1) / 2, cy = (H - 1) / 2;
-    function pickCandidates(col, row) {
-      const list = [];
-      for (let i = 0; i < moves.length; i++) {
-        const dc = moves[i][0], dr = moves[i][1];
-        const nc = col + dc, nr = row + dr;
-        if (visited[at(nc, nr)] !== 0) continue;
-        if (sym !== 'none') {
-          const orb = Solver.symOrbit(nc, nr, sym, W, H);
-          let collision = false;
-          for (let j = 1; j < orb.length; j++) {
-            if (visited[at(orb[j][0], orb[j][1])] !== 0) { collision = true; break; }
-          }
-          if (collision) continue;
-        }
-        list.push([nc, nr]);
-      }
-      if (heuristicNow === 'bruteForce' || list.length <= 1) return list;
-
-      const scores = new Array(list.length);
-      if (heuristicNow === 'warnsdorff') {
-        for (let k = 0; k < list.length; k++) {
-          const c = list[k][0], r = list[k][1];
-          let cnt = 0;
-          for (let i = 0; i < moves.length; i++) {
-            if (visited[at(c + moves[i][0], r + moves[i][1])] === 0) cnt++;
-          }
-          scores[k] = cnt;
-          if (wantsClosure && closureBias[at(c, r)]) scores[k] += CLOSURE_PENALTY;
-        }
-      } else { // outsideIn
-        for (let k = 0; k < list.length; k++) {
-          const c = list[k][0], r = list[k][1];
-          const dx = c - cx, dy = r - cy;
-          scores[k] = -(dx * dx + dy * dy);
-          if (wantsClosure && closureBias[at(c, r)]) scores[k] += CLOSURE_PENALTY;
-        }
-      }
-      const idx = list.map((_, i) => i);
-      idx.sort((a, b) => scores[a] - scores[b]);
-      return idx.map((i) => list[i]);
     }
 
     // Place start + orbit
-    const startOrbit = Solver.symOrbit(startCol, startRow, sym, W, H);
+    const startOrbit = Solver.symOrbit(this.startCol, this.startRow, sym, W, H);
     for (let i = 0; i < startOrbit.length; i++) {
-      if (visited[at(startOrbit[i][0], startOrbit[i][1])] !== 0) {
-        return { path: null, steps: 0 };
+      if (visited[this.at(startOrbit[i][0], startOrbit[i][1])] !== 0) {
+        this.invalid = true; this.done = true; return;
       }
     }
     for (let i = 0; i < startOrbit.length; i++) {
-      visited[at(startOrbit[i][0], startOrbit[i][1])] = 1;
+      visited[this.at(startOrbit[i][0], startOrbit[i][1])] = 1;
     }
+    this.path = [[this.startCol, this.startRow]];
+    this.stack = [{ candidates: this._pickCandidates(this.startCol, this.startRow), nextIdx: 0 }];
+  }
 
-    const path = [[startCol, startRow]];
-    let steps = 0;
-    const stack = [{ candidates: pickCandidates(startCol, startRow), nextIdx: 0 }];
+  at(col, row) { return (row + this.pad) * this.stride + (col + this.pad); }
 
-    while (stack.length > 0) {
-      if (path.length === quarterLen) {
-        if (!wantsClosure) {
-          return { path: Solver.expandTour(path, sym, W, H), steps, closed: false };
+  // Find next solution. If a previous call returned a tour, backtracks one
+  // cell first so the next iteration explores a different branch. Returns
+  // { path, steps, closed } on success, { path: null, steps } on exhaustion.
+  // `steps` is cumulative across all .search() calls on this instance.
+  search() {
+    if (this.invalid || this.done) return { path: null, steps: this.steps };
+    if (this.foundLast) {
+      this._backtrackOne();
+      this.foundLast = false;
+    }
+    while (this.stack.length > 0) {
+      if (this.path.length === this.quarterLen) {
+        if (!this.wantsClosure) {
+          this.foundLast = true;
+          return {
+            path: Solver.expandTour(this.path, this.sym, this.W, this.H),
+            steps: this.steps, closed: false,
+          };
         }
-        const last = path[quarterLen - 1];
-        if (startNbrs[at(last[0], last[1])]) {
-          return { path: Solver.expandTour(path, sym, W, H), steps, closed: true };
+        const last = this.path[this.quarterLen - 1];
+        if (this.startNbrs[this.at(last[0], last[1])]) {
+          this.foundLast = true;
+          return {
+            path: Solver.expandTour(this.path, this.sym, this.W, this.H),
+            steps: this.steps, closed: true,
+          };
         }
+        // Not closed: top frame has empty candidates (path covers all reachable
+        // cells), so the next iteration will trigger the exhausted backtrack.
       }
 
-      const top = stack[stack.length - 1];
+      const top = this.stack[this.stack.length - 1];
       if (top.nextIdx >= top.candidates.length) {
-        const popped = path.pop();
-        const orb = Solver.symOrbit(popped[0], popped[1], sym, W, H);
-        for (let i = 0; i < orb.length; i++) {
-          visited[at(orb[i][0], orb[i][1])] = 0;
-        }
-        stack.pop();
-        steps++;
+        this._backtrackOne();
         continue;
       }
 
       const [nc, nr] = top.candidates[top.nextIdx++];
-      steps++;
-      const orb = Solver.symOrbit(nc, nr, sym, W, H);
+      this.steps++;
+      const orb = Solver.symOrbit(nc, nr, this.sym, this.W, this.H);
       for (let i = 0; i < orb.length; i++) {
-        visited[at(orb[i][0], orb[i][1])] = 1;
+        this.visited[this.at(orb[i][0], orb[i][1])] = 1;
       }
-      path.push([nc, nr]);
-      stack.push({ candidates: pickCandidates(nc, nr), nextIdx: 0 });
+      this.path.push([nc, nr]);
+      this.stack.push({ candidates: this._pickCandidates(nc, nr), nextIdx: 0 });
     }
 
-    return { path: null, steps };
+    this.done = true;
+    return { path: null, steps: this.steps };
+  }
+
+  _backtrackOne() {
+    if (this.path.length === 0) return;
+    const popped = this.path.pop();
+    const orb = Solver.symOrbit(popped[0], popped[1], this.sym, this.W, this.H);
+    for (let i = 0; i < orb.length; i++) {
+      this.visited[this.at(orb[i][0], orb[i][1])] = 0;
+    }
+    this.stack.pop();
+    this.steps++;
+  }
+
+  _pickCandidates(col, row) {
+    const W = this.W, H = this.H, moves = this.moves, sym = this.sym;
+    const visited = this.visited;
+    const list = [];
+    for (let i = 0; i < moves.length; i++) {
+      const dc = moves[i][0], dr = moves[i][1];
+      const nc = col + dc, nr = row + dr;
+      if (visited[this.at(nc, nr)] !== 0) continue;
+      if (sym !== 'none') {
+        const orb = Solver.symOrbit(nc, nr, sym, W, H);
+        let collision = false;
+        for (let j = 1; j < orb.length; j++) {
+          if (visited[this.at(orb[j][0], orb[j][1])] !== 0) { collision = true; break; }
+        }
+        if (collision) continue;
+      }
+      list.push([nc, nr]);
+    }
+    if (this.heuristic === 'bruteForce' || list.length <= 1) return list;
+
+    const CLOSURE_PENALTY = 1000;
+    const cx = (W - 1) / 2, cy = (H - 1) / 2;
+    const scores = new Array(list.length);
+    if (this.heuristic === 'warnsdorff') {
+      for (let k = 0; k < list.length; k++) {
+        const c = list[k][0], r = list[k][1];
+        let cnt = 0;
+        for (let i = 0; i < moves.length; i++) {
+          if (visited[this.at(c + moves[i][0], r + moves[i][1])] === 0) cnt++;
+        }
+        scores[k] = cnt;
+        if (this.wantsClosure && this.closureBias[this.at(c, r)]) scores[k] += CLOSURE_PENALTY;
+      }
+    } else { // outsideIn
+      for (let k = 0; k < list.length; k++) {
+        const c = list[k][0], r = list[k][1];
+        const dx = c - cx, dy = r - cy;
+        scores[k] = -(dx * dx + dy * dy);
+        if (this.wantsClosure && this.closureBias[this.at(c, r)]) scores[k] += CLOSURE_PENALTY;
+      }
+    }
+    const idx = list.map((_, i) => i);
+    idx.sort((a, b) => scores[a] - scores[b]);
+    return idx.map((i) => list[i]);
   }
 }
