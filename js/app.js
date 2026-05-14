@@ -8,18 +8,18 @@
   const i18n  = I18n.getInstance();
   const state = AppState.getInstance();
   state.load();
+  i18n.setLanguage(state.lang);  // sync I18n to whatever load picked
 
   const ui       = new UI();
   const board    = new Board(ui.boardEl);
   const renderer = new Renderer(board);
 
-  let lastStart = null;
-
   function rebuildBoard() {
-    lastStart = null;
+    state.lastStart = null;
     board.setDimensions(state.W, state.H);
     ui.refreshSymmetryOptions();
     ui.setStatus(i18n.t('clickPrompt'), '');
+    state.save();
   }
 
   // Click handler — yields via double-rAF so the clicked coords paint to
@@ -27,7 +27,8 @@
   // threaded; a synchronous solve() after a DOM mutation would otherwise
   // suppress the intermediate paint).
   function onCellClick(col, row) {
-    lastStart = { col, row };
+    state.lastStart = { col, row };
+    state.save();  // keeps the URL hash in sync for replay
     ui.setStatus(`${col} / ${row}`, '');
     renderer.clear();
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -46,7 +47,7 @@
   }
 
   function resolveLast() {
-    if (lastStart) onCellClick(lastStart.col, lastStart.row);
+    if (state.lastStart) onCellClick(state.lastStart.col, state.lastStart.row);
   }
 
   function shuffle(arr) {
@@ -120,5 +121,17 @@
   ui.applyI18n();
   ui.applyState();
   ui.bindHandlers();
-  rebuildBoard();
+
+  // First-time-from-URL: if the loaded state has a lastStart from the hash,
+  // build the board for state.W/H but DON'T null lastStart (rebuildBoard
+  // would), then auto-trigger the solve. Otherwise just rebuild normally.
+  const hashStart = state.lastStart;
+  if (hashStart) {
+    board.setDimensions(state.W, state.H);
+    ui.refreshSymmetryOptions();
+    ui.setStatus(i18n.t('clickPrompt'), '');
+    onCellClick(hashStart.col, hashStart.row);
+  } else {
+    rebuildBoard();
+  }
 })();

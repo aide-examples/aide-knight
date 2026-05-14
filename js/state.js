@@ -1,14 +1,23 @@
 // AppState — single source of truth for all app settings.
 //
-// Holds W, H, heuristic, figure, activeMoves (move definition order, possibly
-// shuffled), showNumbers, showLines, wantClosed, symType. Persistence is via
-// localStorage in B1. URL-hash deep-linking will be added in B2 (Phase 7.5).
+// Persistence layers:
+//   - localStorage (durable across sessions): everything except lastStart
+//   - URL hash (deep-linkable, replay-friendly): everything *including*
+//     lastStart, so a URL fully reproduces an interaction
 //
-// Singleton: AppState.getInstance(). State mutations should go through
-// the .set / .setMoveOrder methods so save() runs automatically.
+// Hash format:
+//   #W=8&H=8&fig=1,2&heur=warnsdorff&sym=none&closed=0&numbers=1&lines=1
+//   &mix=1,2;2,1;2,-1;1,-2;-1,-2;-2,-1;-2,1;-1,2&start=3,3
+//
+// load() reads localStorage first, then URL hash overrides; save() updates
+// both. lastStart in localStorage would auto-fire a solve after restart,
+// which is undesired — but in the URL it is the whole point.
+//
+// Singleton: AppState.getInstance().
 
 class AppState {
   constructor() {
+    this.lang = 'en';       // i18n language code; visible switcher arrives in B3
     this.W = 8;
     this.H = 8;
     this.heuristic = 'warnsdorff';
@@ -18,6 +27,7 @@ class AppState {
     this.showLines = true;
     this.wantClosed = false;
     this.symType = 'none';
+    this.lastStart = null;  // { col, row } when a tour was started; URL-only
   }
 
   static STATE_KEY = 'aide-knight-state-v1';
@@ -28,10 +38,21 @@ class AppState {
   }
 
   load() {
+    this._loadFromStorage();
+    this._loadFromHash();
+  }
+
+  save() {
+    this._saveToStorage();
+    this._saveToHash();
+  }
+
+  _loadFromStorage() {
     try {
       const raw = localStorage.getItem(AppState.STATE_KEY);
       if (!raw) return;
       const s = JSON.parse(raw);
+      if (I18n.getInstance().availableLanguages().includes(s.lang)) this.lang = s.lang;
       if (Number.isInteger(s.W) && s.W >= 1) this.W = s.W;
       if (Number.isInteger(s.H) && s.H >= 1) this.H = s.H;
       if (['warnsdorff', 'outsideIn', 'bruteForce'].includes(s.heuristic)) {
@@ -47,9 +68,13 @@ class AppState {
     } catch { /* ignore — start from defaults */ }
   }
 
-  save() {
+  _saveToStorage() {
     try {
+      // Note: lastStart is intentionally NOT persisted to localStorage —
+      // we don't want an auto-solve to fire when the user reloads without
+      // an explicit URL.
       localStorage.setItem(AppState.STATE_KEY, JSON.stringify({
+        lang: this.lang,
         W: this.W, H: this.H,
         heuristic: this.heuristic, figure: this.figure,
         moveOrder: this.activeMoves,
@@ -59,12 +84,91 @@ class AppState {
     } catch { /* ignore — non-persistent mode */ }
   }
 
+  _loadFromHash() {
+    const hash = window.location.hash.substring(1);
+    if (!hash) return;
+    const p = new URLSearchParams(hash);
+
+    const lang = p.get('lang');
+    if (lang && I18n.getInstance().availableLanguages().includes(lang)) this.lang = lang;
+
+    const wv = parseInt(p.get('W'), 10);
+    if (Number.isInteger(wv) && wv >= 1) this.W = wv;
+    const hv = parseInt(p.get('H'), 10);
+    if (Number.isInteger(hv) && hv >= 1) this.H = hv;
+
+    const heur = p.get('heur');
+    if (['warnsdorff', 'outsideIn', 'bruteForce'].includes(heur)) this.heuristic = heur;
+
+    const fig = p.get('fig');
+    // Only reset activeMoves when the figure actually changes — otherwise
+    // a same-figure URL would wipe a shuffled order that localStorage held.
+    if (['1,2', '1,4', '2,3', '3,4'].includes(fig) && fig !== this.figure) {
+      this.figure = fig;
+      this.activeMoves = Figures.generateBaseMoves(fig);
+    }
+
+    const sym = p.get('sym');
+    if (['none', 'axisV', 'point', 'rot90'].includes(sym)) this.symType = sym;
+
+    if (p.get('closed') === '0' || p.get('closed') === '1') {
+      this.wantClosed = p.get('closed') === '1';
+    }
+    if (p.get('numbers') === '0' || p.get('numbers') === '1') {
+      this.showNumbers = p.get('numbers') === '1';
+    }
+    if (p.get('lines') === '0' || p.get('lines') === '1') {
+      this.showLines = p.get('lines') === '1';
+    }
+
+    const mix = p.get('mix');
+    if (mix) {
+      try {
+        const moves = mix.split(';').map((s) => s.split(',').map(Number));
+        const base = Figures.generateBaseMoves(this.figure);
+        if (this._isValidMoveOrder(moves, base)) this.activeMoves = moves;
+      } catch { /* ignore */ }
+    }
+
+    const start = p.get('start');
+    if (start) {
+      const [c, r] = start.split(',').map((s) => parseInt(s, 10));
+      if (Number.isInteger(c) && Number.isInteger(r) &&
+          c >= 0 && c < this.W && r >= 0 && r < this.H) {
+        this.lastStart = { col: c, row: r };
+      }
+    }
+  }
+
+  _saveToHash() {
+    const params = new URLSearchParams();
+    params.set('lang', this.lang);
+    params.set('W', this.W);
+    params.set('H', this.H);
+    params.set('fig', this.figure);
+    params.set('heur', this.heuristic);
+    params.set('sym', this.symType);
+    params.set('closed',  this.wantClosed  ? '1' : '0');
+    params.set('numbers', this.showNumbers ? '1' : '0');
+    params.set('lines',   this.showLines   ? '1' : '0');
+    params.set('mix', this.activeMoves.map((m) => m.join(',')).join(';'));
+    if (this.lastStart) {
+      params.set('start', `${this.lastStart.col},${this.lastStart.row}`);
+    }
+    // Decode URL-encoded commas/semicolons — they're safe inside a fragment.
+    const newHash = '#' + params.toString().replace(/%2C/gi, ',').replace(/%3B/gi, ';');
+    if (window.location.hash !== newHash) {
+      history.replaceState(null, '', newHash);
+    }
+  }
+
   _isValidMoveOrder(saved, base) {
     if (!Array.isArray(saved) || saved.length !== base.length) return false;
     const baseKeys = new Set(base.map((m) => m.join(',')));
     const sawKeys = new Set();
     for (const m of saved) {
       if (!Array.isArray(m) || m.length !== 2) return false;
+      if (!Number.isInteger(m[0]) || !Number.isInteger(m[1])) return false;
       const k = m.join(',');
       if (!baseKeys.has(k) || sawKeys.has(k)) return false;
       sawKeys.add(k);
