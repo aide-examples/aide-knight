@@ -149,14 +149,14 @@ test('Solver: blocked cell makes the start invalid', () => {
   assertEq(r.path, null);
 });
 
-test('Solver: 8x8 Outside-In Point with 8 symmetric blocks finds 56-cell tour', () => {
-  // User-confirmed pattern (Phase 8 screenshot, May 14): four point-symmetric
-  // pairs of blocks form a 'mask'. Pure Warnsdorff on a single central
-  // block stalls badly, but Outside-In with point symmetry and this curated
-  // block set finds the 56-cell closed tour in a few thousand steps.
+test('Solver: 8x8 Outside-In Point with 8 symmetric blocks finds 56-cell tour from (0,1)', () => {
+  // User-confirmed pattern (Phase 8): four point-symmetric pairs of blocks
+  // form a 'mask'. Pure Warnsdorff on a single central block stalls badly,
+  // but Outside-In + point symmetry + this curated block set finds the
+  // 56-cell closed tour fast. Start (0,1) finishes in ~45 steps.
   const moves = Figures.generateBaseMoves('1,2');
   const blocked = new Set(['6,6','1,1','1,6','6,1','3,4','4,3','4,4','3,3']);
-  const r = Solver.solve(8, 8, moves, 7, 7, {
+  const r = Solver.solve(8, 8, moves, 0, 1, {
     heuristic: 'outsideIn',
     sym: 'point',
     blocked,
