@@ -624,3 +624,134 @@ Bestätigt funktionierende Features:
 16523e8 — Phase 8 follow-up: replace hanging Warnsdorff-block test with confirmed user pattern
 a9e5df5 — Phase 8 follow-up: faster start cell for the block-pattern test
 ```
+
+---
+
+## Architektur-Cluster vor Phase 9: DI-Refactor + Sym/SearchDriver-Extraktion
+
+Bevor Phase 9 implementierbar wurde, fielen zwei architektonische Vorklärungen an, die der User direkt angestoßen hat. Beide gehören in die Phase-12-Lehrunterlage, weil sie methodisch ebenso wertvoll sind wie die NFR-Diskussion am Ende von Phase 7.
+
+### Provokante User-Frage: "Welcher Nachteil, wenn wir grundsätzlich mit Instances arbeiten?"
+
+Das System hatte bis dahin den Mischzustand: `I18n` und `AppState` als Singletons (`static getInstance()`), `Solver` als Instance. Der User-Vorschlag war: **alles als Instance**, am Entry-Point genau einmal instanziiert, per Konvention mit `the…` benannt (`const theI18n = new I18n()`).
+
+Antwort nach Abwägung: **fast keine echten Nachteile.** Singleton ist globaler State in Klassen-Hülle und unterläuft `T_CONTRACT.md`-Sektion 1 ("kein globaler State außerhalb von Klassen"). DI macht Abhängigkeiten in jeder Konstruktor-Signatur sichtbar; Tests instanziieren frisch; Embedding mehrerer Boards funktioniert ohne Refactor.
+
+Konsequenzen umgesetzt:
+- Neue CLAUDE.md-Sektion **"Dependency Injection bevorzugt vor Singleton-Pattern"** ersetzt die alte "Singleton-Einführung". Globale Wirkung, auch für andere Projekte (User-Bezug: aide-rap).
+- `T_CONTRACT.md` Sektion 1 umformuliert: `static getInstance()` ist *nicht* zugelassen.
+- Neue `T_CONTRACT.md` Sektion 9 **"Aus dem globalen Coding-Vertrag mitgeerbt"** — listet die CLAUDE.md-Prinzipien, die im Projekt operativ wirken aber aus den projektlokalen Dokumenten allein nicht direkt sichtbar sind (Modulkapselung, Lokalität, Single-Point-of-Access, no-setTimeout-Hack, stille-Auslassung-verboten, Detektor-vor-Fix, only-living-code, MD-Beschreibungssatz). User-Begründung: "ein naiver Leser, der nur Knight's Tour ansieht" muss diese Prinzipien nicht aus Indizien rekonstruieren.
+- Code-Refactor: `I18n` und `AppState` haben kein `static getInstance` mehr. Konstruktoren von `AppState`, `Board`, `UI` nehmen ihre Abhängigkeiten explizit. `app.js` ist der einzige Ort, der `new` aufruft.
+
+Commit: `7e485e1` (T_CONTRACT) + `3228758` (Code-Refactor) + manuell `~/.claude/CLAUDE.md`-Update (kein Git-Repo).
+
+### Module über 250 Zeilen → Sym + SearchDriver herausgezogen
+
+`solver.js` lag bei 293 Zeilen, `app.js` bei 283 — Verletzung der T-Contract-Modulgröße. Statt die Regel aufzuweichen wurden zwei klare Schnitte gezogen:
+
+- **`js/sym.js`** — `Sym`-Klasse mit statischen Symmetrie-Helfern (`isValid`, `orbit`, `transform`, `expand`, `SIZES`). Wird von `Solver` und (für Orbit-erweiterte Blocks) von `app.js` benutzt.
+- **`js/driver.js`** — `SearchDriver`-Klasse, der Chunked-Async-Executor (50 ms Chunks, Token-Cancellation, Live-Status-Updates). `app.js` instanziiert ihn als `theDriver` und ruft `start(solver)` / `stop()` / `invalidate()`.
+
+Ergebnis (Stand nach Phase 9):
+
+| Datei | Zeilen |
+|---|---|
+| `js/app.js` | 228 |
+| `js/board.js` | 233 |
+| `js/driver.js` | 82 |
+| `js/figures.js` | 21 |
+| `js/i18n.js` | 105 |
+| `js/renderer.js` | 69 |
+| `js/solver.js` | 238 |
+| `js/state.js` | 230 |
+| `js/sym.js` | 60 |
+| `js/ui.js` | 187 |
+
+Alle unter 250. T-Contract-konform.
+
+---
+
+## Phase 9 — Suchsteuerung: Time-Budget, Stop-Button, Re-Klick = nächste Lösung
+
+### Re-Framing des Master-Plans
+
+`knight.md` Z. 20 hatte vorgeschlagen: "alle 5 Sekunden per `confirm()` fragen, ob weitergesucht werden soll". Der User hat das **mid-Phase neu sortiert** mit der Begründung, dass er *zwei* sehr unterschiedliche Use-Cases hat:
+
+1. **Lange absichtliche Suche.** Beispiel: 10×10 Zebra (2,3) finden, was bis zu 30 Minuten dauern könnte. Hier wäre ein 5-Sekunden-Pop-up unerträglich — der User WILL warten.
+2. **Schnelle Exploration.** Beispiel: mehrere Startfelder durchprobieren, nur an denjenigen interessiert die *schnell* eine Lösung liefern. Hier sollte 1-2 Sekunden reichen.
+
+Diese zwei Bedürfnisse werden mit **einem einzigen Mechanismus** bedient: **user-konfiguriertes Zeit-Budget pro Suche**. Default 10 s. User setzt 300 oder 2 je nach Stimmung. Das `knight.md`-5-Sekunden-Confirm-Pattern ist damit obsolet.
+
+### Mikrofragen & Antworten
+
+**Q: Wie soll das Zeit-Budget gesetzt werden?** A: Number-Input "Time budget (s)" in Reihe 1, frei zwischen ≥1, persistiert in URL + localStorage.
+
+**Q: Default-Wert?** A: 10 Sekunden — Mitte zwischen den Use-Cases, deckt fast alle "normalen" Lösungen ab.
+
+**Q: Manueller Stop-Button zusätzlich?** A: Ja, sichtbar während laufender Suche, verschwindet bei Ende.
+
+**Q (vom User vor den Mikrofragen): Re-Klick = "nächste Lösung" — wie soll das genau gehen?** A: Solver-Instanz lebt zwischen Klicks; bei gleichem Startfeld + gleichen Settings setzt die zweite `.search()`-Call die Suche von der vorherigen gefundenen Tour fort (intern: ein Backtrack-Schritt, dann normales Weitermachen). Schritt-Counter wächst über alle Klicks hinweg.
+
+### Implementation (Architektur-Stack)
+
+**1. Solver als echte Instanz mit chunked Execution.**
+
+`Solver.search(maxMs)` läuft die iterative DFS für höchstens `maxMs` Millisekunden, gibt einen Discriminated-Union-Result zurück:
+
+```
+{ kind: 'found',     path, steps, closed }   — Tour gefunden
+{ kind: 'exhausted', steps }                 — Suchraum leer
+{ kind: 'timeout',   steps }                 — Chunk-Zeit erschöpft, resumable
+```
+
+Time-Check alle 1000 inneren Iterationen (`CHECK_EVERY`) — `Date.now()`-Overhead ist damit unter 0.1 %.
+
+`Solver.solve(...)` als statischer Wrapper für Tests (übergibt `Infinity` als maxMs).
+
+`foundLast`-Flag: nach `kind: 'found'` macht der nächste `.search()`-Call genau einen Backtrack-Schritt, dann läuft die Schleife normal weiter — die nächste Tour erscheint mit anderer Geometrie. `steps` akkumuliert.
+
+**2. SearchDriver — der chunked Loop in app.js entfernt.**
+
+`new SearchDriver(theState, theI18n, theUI, theRenderer).start(solver)` schedult `setTimeout(0)`-getaktete 50-ms-Chunks. Pro Chunk:
+
+- Token-Check: ein neuer Klick / `stop()` / Settings-Change inkrementiert das interne `token`; veraltete Chunks aussteigen ohne UI zu mutieren.
+- `solver.search(min(50ms, remaining))` aufrufen.
+- Auf `found` / `exhausted`: Status setzen + ggf. Tour rendern + Stop-Button verstecken.
+- Auf `timeout`: Status auf "Searching… N Schritte, T.T s" aktualisieren und nächsten Chunk schedulen.
+- Globalbudget-Check: Wenn `elapsed >= theState.timeBudget * 1000`, Abort mit "Aborted after T s, N steps".
+
+**3. AppState.timeBudget** (Sekunden, default 10), persistiert wie alle anderen Felder.
+
+**4. UI:** `time-budget-input` (Number-Input, Reihe 1), `stop-btn` (rotes Button, `hidden`-Attribut steuert Sichtbarkeit). Sprach-Switcher ist davor in Reihe 1.
+
+**5. Solver-Lifecycle in app.js.** Ein einziger `currentSolver` + `currentSolverKey` (Fingerprint aus W, H, col, row, heuristic, figure, mix-order, sym, closed, blocked). Klick mit gleichem Key → Solver-Reuse → `.search()` continued. Settings-Change ruft `dropSolver()`, der den Driver invalidiert und beide auf null setzt → nächster Klick erzeugt frischen Solver.
+
+### i18n (en + de)
+
+Neue Strings: `timeBudgetLabel`, `stopBtn`, `searching(n, sec)`, `aborted(sec, n)`, `stopped(n)`.
+
+### Smoke-Tests (Node-Standalone)
+
+- `Solver.solve(8, 8, ...)` synchron: 64-Zell-Tour in 63 Schritten ✓
+- Instanz `.search(Infinity)` zweimal mit Start (3,3): zwei *verschiedene* Touren, Schritt-Counter wächst 63 → 73 ✓
+- `.search(20ms)` mit pathologischem `(4,4)`-Block: `timeout` nach ~8000 Schritten ✓
+
+### User-Test (verbal)
+
+Beide Use-Cases vom User bestätigt:
+- **Schnelle Exploration:** `timeBudget = 2`, Klick-durch-Startfelder. Browser bleibt während der Suche bedienbar.
+- **Lange absichtliche Suche:** großes `timeBudget`, Live-Status zeigt Fortschritt, Stop-Button jederzeit verfügbar, keine Browser-Protector-Pop-ups.
+- **Re-Klick = nächste Tour** funktioniert, Schritt-Counter wächst.
+- **Settings-Change während Suche:** Suche bricht ab, nächster Klick startet frisch.
+- **Tests:** alle 12 Cases grün.
+
+(Kein Screenshot diesmal — die Phase wirkt sich vor allem im *Verhalten* aus, nicht in einem charakteristischen Bild.)
+
+### Commits
+
+```
+7e485e1 — T_CONTRACT: DI over Singleton + new section 9 'inherited globals'
+3228758 — DI refactor: replace Singleton getInstance with constructor-injected 'theX' convention
+0b994e2 — Phase 9: chunked async search with time budget, stop button, re-click-continue
+```
+Plus `~/.claude/CLAUDE.md`-Sektion "Dependency Injection bevorzugt vor Singleton-Pattern" (außerhalb dieses Repos, ungetrackt).
