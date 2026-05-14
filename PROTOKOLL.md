@@ -807,3 +807,89 @@ Bestätigt funktionierende Features:
 ### Commit
 
 `e7ebf10 — Phase 10: per-cell sensitivity scan with live heatmap`
+
+---
+
+## Phase 11 — Code-Hygiene + 100×200-Stresstest
+
+### Kontext
+
+Master-Plan: "Falls Phase 1–10 alles in einer Datei zusammenhäuft: aufteilen in board.js, solver.js, ui.js, app.js …". **Das Phase-7.5-DI-Retrofit hat diese Arbeit bereits vorweggenommen** — die Codebase besteht heute aus 10 OO-Modulen, alle unter 250 Zeilen, mit `theX`-DI-Konvention statt Singletons. Phase 11 wird damit zum **Validierungs- und Politur-Pass**, nicht zu einem strukturellen Eingriff.
+
+### Mikrofragen & Antworten
+
+**Q: Wie tief soll der Stresstest werden?**
+A: Alle drei Heuristiken + Closed, jeweils 60 s Budget. Liefert eine Vergleichstabelle für das Protokoll.
+
+**Q: Wo soll der Hygiene-Pass schwerpunktmäßig hinschauen?**
+A: UI/UX-Polish + Konsistenz-Audit. Test-Erweiterung und Performance-Profiling explizit ausgelassen.
+
+### 100×200-Stresstest
+
+Node-Standalone-Lauf gegen die produktive `Solver`-Implementierung, Start (0,0) auf 100×200 Knight, Budget 60 s pro Lauf:
+
+| Konfiguration | Ergebnis | Schritte | Zeit |
+|---|---|---|---|
+| Warnsdorff (open) | ✓ **found** | 19 999 | **86 ms** |
+| Outside-In (open) | timeout | 286 M | 60 s |
+| Brute Force (open) | timeout | 491 M | 60 s |
+| Warnsdorff CLOSED | timeout | 298 M | 60 s |
+
+**Interpretation:**
+- **Warnsdorff erfüllt das Master-Plan-Kriterium mit zwei Größenordnungen Reserve.** Akzeptanzziel war "einstellige Sekunden"; 86 ms ist 60× besser. Auf großem Rechteck ist Warnsdorff praktisch perfekt — keine Backtracks (`steps = total - 1`).
+- **Outside-In skaliert *katastrophal*.** Die schon in Phase 10 sichtbare Heterogenität ("manche Startfelder schwer, manche leicht") verschärft sich mit Brettgröße. 286 M Schritte in 60 s = ~4.8 M Schritte/s — der Solver arbeitet effektiv, aber die Heuristik führt ihn ins Leere.
+- **Brute Force** wie erwartet auf großem Brett unbrauchbar (Master-Plan akzeptierte das explizit).
+- **Closed-Warnsdorff** findet auf 100×200 in 60 s keine geschlossene Tour. *Bedeutet nicht*, dass keine existiert — die Schwenk-Bias arbeitet nicht stark genug für diese Größenordnung. Eine Limitation des aktuellen Bias-Verfahrens; per Plan-Anti-Pattern "keine späten Komplett-Rewrites" wird sie als bekannte Eigenheit dokumentiert, nicht durch Neu-Architektur überschrieben.
+
+### UI/UX-Polish (Commit `a224ff0`)
+
+Drei kleine CSS-Verbesserungen:
+
+1. **CSS-Variablen für Akzent-Farbe.** `--color-accent` (`#c0392b`, das Rot der Tour-Linie + Stop-Button + Cell-Focus-Outline) + `--color-accent-shadow` (`#8a2618`) in `:root`. Vorher waren diese Werte an drei Stellen hardcoded — jetzt eine Quelle.
+2. **Focus-Ring für `#search-controls button`.** Stop- und Sensitivity-Button hatten bisher den Default-Browser-Focus-Ring (statt unserer einheitlichen `outline: 2px solid var(--color-ink)`-Linie). Kleine a11y-Konsistenz-Lücke geschlossen.
+3. **Redundante `#status2 { margin-top: 0.3rem; }`-Regel entfernt.** Wurde vom darüberliegenden geteilten Rule mit identischem Wert überschrieben — dead style.
+
+### Konsistenz-Audit
+
+Stichproben über die ganze Codebase:
+
+- **Modul-Header-Stil:** Jede `js/*.js`-Datei beginnt mit `// <Klasse> — <einzeiliger Zweck>`, gefolgt von einem leeren Comment-Block und mehrzeiliger Erklärung. **Einheitlich, keine Ausreißer.**
+- **Stray-`console.*`-Calls:** Keine. (Nur in `tests/tests.js`, dort als Test-Runner-Ausgabe legitim.)
+- **`TODO`/`FIXME`/`XXX`:** Keine offenen Markierungen.
+- **Status-Wortlaut-Konvention:** Terminale Statusmeldungen enden mit Punkt (`Solution found after N steps.`), laufende mit Auslassung oder ohne Punkt (`Searching… N steps, T.T s`, `Sensitivity: cell K/N`). Konsistent in `en` und `de`.
+- **Singleton-Reste:** `grep -E "static getInstance|_instance" js/*.js` liefert nichts. Phase-7.5-Refactor vollständig.
+
+### T-Contract Verifikation (Section-by-Section)
+
+| Sektion | Status |
+|---|---|
+| 1. Architektur — OO, multi-file, <250, pure functions, SSoT, DI | ✓ alle 10 Module konform, keine `getInstance`, klare Schnittstellen |
+| 2. Plattform — file:// ohne Server/Node, modern Chromium/FF/Safari | ✓ keine Build-Abhängigkeiten, klassische `<script>`-Tags |
+| 3. Replay-Testbarkeit — URL-Hash, headless-CI-tauglich, Pure-Function-Tests | ✓ Phase 7.5 B2 + tests/test.html |
+| 4. Responsivität — Resize/Reflow, Touch-Substitute, Hover, lange Ops mit Cancel | ✓ Phase 3 + Phase 8 Long-Press + Phase 9 Stop+Budget |
+| 5. i18n als Architektur, Switcher, en+de | ✓ Phase 7.5 B3 |
+| 6. a11y — Keyboard, ARIA, aria-live, Focus, kein color-only | ✓ Phase 7.5 B4 + Phase 11 search-controls focus |
+| 7. Performance & Robustheit — Soft-Limit, defensive Parsing, no silent failure | ✓ time budget = soft limit; localStorage try/catch; Tests greifen, nichts wird leise ignoriert |
+| 8. Code-Qualität — Test-Skelett, MD-Beschreibungssätze, <250 | ✓ tests/test.html mit 12 Cases; alle MDs starten mit Beschreibungssatz |
+| 9. Aus dem globalen CLAUDE.md mitgeerbt — Modulkapselung, Lokalität, SPoA, no-setTimeout-Workaround, no-silent-failure, Detektor-vor-Fix, only-living-code, MD-Beschreibungssatz | ✓ — speziell der "Detektor-vor-Fix" wurde in Phase 8 (hängender Test) praktisch durchexerziert |
+
+**Resultat:** Die Codebase ist Code-Review-tauglich nach Master-Plan-Kriterium.
+
+### Was bewusst NICHT in Phase 11 gemacht wurde
+
+- **Test-Abdeckung erweitern** (Re-Click-Continue als Test, Sensitivität, Block+Orbit). User-Entscheid: nicht in dieser Phase. Verbleibendes Risiko: niedrig — die manuell durchexerzierten Phase-9/10-Szenarien deckten Hauptpfade ab.
+- **Performance-Profiling der großen Bretter.** Warnsdorff-Open auf 100×200 ist mit 86 ms unter dem Wahrnehmungsschwellwert; Outside-In/Brute Force sind algorithmisch durch das Time-Budget abgefangen. Kein konkreter Optimierungsbedarf identifiziert.
+- **Closed-Warnsdorff-Bias-Verbesserung auf 100×200.** Bekannte Limitation; nicht im Master-Plan-Scope.
+- **Color-blind-safe Heatmap-Palette.** Im T-Contract explizit als optional / niedrig dokumentiert.
+- **Mobile-Portrait-Layout.** Dito.
+
+### Commits dieser Phase
+
+```
+a224ff0 — Phase 11 polish: CSS accent variables + focus-ring on search-controls + remove redundant rule
+```
+Plus diese PROTOKOLL.md-Ergänzung.
+
+---
+
+**Damit ist Phase 11 abgeschlossen. Im Master-Plan bleibt nur noch Phase 12 — die co-redaktionale Destillation einer Lehrunterlage aus diesem Protokoll, gemeinsam mit dem User.**
