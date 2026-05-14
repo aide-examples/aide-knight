@@ -36,6 +36,7 @@
         heuristic: state.heuristic,
         closed:    state.wantClosed,
         sym:       state.symType,
+        blocked:   state.blockedCells,
       });
       if (result.path) {
         renderer.render(result.path, !!result.closed);
@@ -78,6 +79,13 @@
     if (W === state.W && H === state.H) return;
     state.W = W;
     state.H = H;
+    // Prune out-of-bounds blocks: cells that no longer fit on the smaller board.
+    const filtered = new Set();
+    for (const k of state.blockedCells) {
+      const [c, r] = k.split(',').map(Number);
+      if (c >= 0 && c < W && r >= 0 && r < H) filtered.add(k);
+    }
+    state.blockedCells = filtered;
     state.save();
     rebuildBoard();
   };
@@ -128,7 +136,31 @@
     resolveLast();
   };
 
+  // Right-click / long-press / Shift+Enter on a cell toggles its blocked
+  // status. Under an active symmetry, the orbit is auto-extended so the
+  // block set stays symmetry-compatible — the user sees N cells flip at
+  // once (2 for axisV/point, 4 for rot90).
+  function onCellBlock(col, row) {
+    const orbit = state.symType !== 'none'
+      ? Solver.symOrbit(col, row, state.symType, state.W, state.H)
+      : [[col, row]];
+    const key0 = `${col},${row}`;
+    const wasBlocked = state.blockedCells.has(key0);
+    for (const [c, r] of orbit) {
+      const key = `${c},${r}`;
+      if (wasBlocked) state.blockedCells.delete(key);
+      else            state.blockedCells.add(key);
+    }
+    // Toggling invalidates any current tour; clear and let the user re-click.
+    state.lastStart = null;
+    state.save();
+    board.applyBlockClasses();
+    renderer.clear();
+    ui.setStatus(i18n.t('clickPrompt'), '');
+  }
+
   board.setOnCellClick(onCellClick);
+  board.setOnCellBlock(onCellBlock);
 
   // Click on the page title resets every setting to its default. Useful when
   // the URL hash has accumulated a shuffle / closed / symmetry combination
@@ -137,6 +169,7 @@
     Object.assign(state, AppState.DEFAULTS);
     state.activeMoves = Figures.generateBaseMoves(state.figure);
     state.lastStart = null;
+    state.blockedCells = new Set();
     i18n.setLanguage(state.lang);  // triggers i18n subscribers (ui + board)
     ui.applyState();
     rebuildBoard();

@@ -23,6 +23,7 @@ class Board {
   static NUM_FONT_MIN_PX = 9;
 
   setOnCellClick(handler) { this.onCellClick = handler; }
+  setOnCellBlock(handler) { this.onCellBlock = handler; }
 
   setDimensions(W, H) {
     this.W = W;
@@ -87,14 +88,13 @@ class Board {
         cell.setAttribute('aria-colindex', col + 1);
         cell.setAttribute('aria-label', i18n.t('cellLabel', col, row));
         cell.tabIndex = (col === focusCell.col && row === focusCell.row) ? 0 : -1;
-        cell.addEventListener('click', () => {
-          if (this.onCellClick) this.onCellClick(col, row);
-        });
+        this._wireCellEvents(cell, col, row);
         frag.appendChild(cell);
         this.cellByIdx[row * this.W + col] = cell;
       }
     }
     this.boardEl.appendChild(frag);
+    this.applyBlockClasses();
 
     this.overlay = document.createElementNS(Board.SVG_NS, 'svg');
     this.overlay.setAttribute('id', 'overlay');
@@ -123,7 +123,11 @@ class Board {
         case 'Enter':
         case ' ':
           e.preventDefault();
-          if (this.onCellClick) this.onCellClick(col, row);
+          if (e.shiftKey) {
+            if (this.onCellBlock) this.onCellBlock(col, row);
+          } else {
+            if (this.onCellClick) this.onCellClick(col, row);
+          }
           return;
         default:
           handled = false;
@@ -141,6 +145,60 @@ class Board {
     if (newCell) {
       newCell.tabIndex = 0;
       newCell.focus();
+    }
+  }
+
+  // Three input paths to a cell:
+  //   - left click       => onCellClick (start a solve)
+  //   - right click      => onCellBlock (toggle blocked)  + suppress context menu
+  //   - touch long-press => onCellBlock  (touch substitute for right click)
+  // The click event always fires after pointerup; if the long-press timer
+  // already fired, the click is suppressed to avoid double-triggering.
+  _wireCellEvents(cell, col, row) {
+    let pressTimer = null;
+    let longPressFired = false;
+    const LONG_PRESS_MS = 500;
+
+    cell.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;  // only the primary pointer
+      longPressFired = false;
+      pressTimer = setTimeout(() => {
+        pressTimer = null;
+        longPressFired = true;
+        if (this.onCellBlock) this.onCellBlock(col, row);
+      }, LONG_PRESS_MS);
+    });
+    const cancel = () => {
+      if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    };
+    cell.addEventListener('pointerup', cancel);
+    cell.addEventListener('pointercancel', cancel);
+    cell.addEventListener('pointerleave', cancel);
+
+    cell.addEventListener('click', (e) => {
+      if (longPressFired) {
+        e.preventDefault();
+        e.stopPropagation();
+        longPressFired = false;
+        return;
+      }
+      if (this.onCellClick) this.onCellClick(col, row);
+    });
+
+    cell.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (this.onCellBlock) this.onCellBlock(col, row);
+    });
+  }
+
+  // Reflect AppState.blockedCells onto the .blocked CSS class. Idempotent;
+  // safe to call after any block-set mutation or board rebuild.
+  applyBlockClasses() {
+    const blocked = AppState.getInstance().blockedCells;
+    for (const cell of this.cellByIdx) {
+      if (!cell) continue;
+      const key = `${cell.dataset.col},${cell.dataset.row}`;
+      cell.classList.toggle('blocked', blocked.has(key));
     }
   }
 

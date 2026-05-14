@@ -28,6 +28,7 @@ class AppState {
     this.wantClosed = false;
     this.symType = 'none';
     this.lastStart = null;  // { col, row } when a tour was started; URL-only
+    this.blockedCells = new Set();  // set of "col,row" strings; cells the solver must avoid
   }
 
   static STATE_KEY = 'aide-knight-state-v1';
@@ -79,6 +80,11 @@ class AppState {
       if (typeof s.showLines   === 'boolean') this.showLines   = s.showLines;
       if (typeof s.wantClosed  === 'boolean') this.wantClosed  = s.wantClosed;
       if (['none', 'axisV', 'point', 'rot90'].includes(s.symType)) this.symType = s.symType;
+      if (Array.isArray(s.blockedCells)) {
+        this.blockedCells = new Set(
+          s.blockedCells.filter((k) => typeof k === 'string' && /^\d+,\d+$/.test(k))
+        );
+      }
     } catch { /* ignore — start from defaults */ }
   }
 
@@ -94,6 +100,7 @@ class AppState {
         moveOrder: this.activeMoves,
         showNumbers: this.showNumbers, showLines: this.showLines,
         wantClosed: this.wantClosed, symType: this.symType,
+        blockedCells: Array.from(this.blockedCells),
       }));
     } catch { /* ignore — non-persistent mode */ }
   }
@@ -152,6 +159,12 @@ class AppState {
         this.lastStart = { col: c, row: r };
       }
     }
+
+    const block = p.get('block');
+    if (block) {
+      const keys = block.split(';').filter((k) => /^\d+,\d+$/.test(k));
+      this.blockedCells = new Set(keys);
+    }
   }
 
   _saveToHash() {
@@ -175,6 +188,9 @@ class AppState {
     }
     if (this.lastStart) {
       params.set('start', `${this.lastStart.col},${this.lastStart.row}`);
+    }
+    if (this.blockedCells.size > 0) {
+      params.set('block', Array.from(this.blockedCells).join(';'));
     }
 
     const serialized = params.toString()

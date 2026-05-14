@@ -59,6 +59,7 @@ class Solver {
     const heuristicNow = opts.heuristic || 'warnsdorff';
     const closed = !!opts.closed;
     const sym = opts.sym || 'none';
+    const blocked = (opts.blocked instanceof Set) ? opts.blocked : new Set();
     const wantsClosure = closed || sym !== 'none';
 
     if (!Solver.isSymTypeValid(sym, W, H)) {
@@ -67,8 +68,14 @@ class Solver {
 
     const pad = Figures.computePad(moves);
     const stride = W + 2 * pad;
-    const total = W * H;
     const orbitSize = Solver.SYM_ORBIT_SIZE[sym];
+    // Tour visits every non-blocked cell once. quarterLen is the count of
+    // explicit-search cells; under symmetry, each placement fills orbitSize
+    // cells implicitly, so total must be divisible by orbitSize.
+    const total = W * H - blocked.size;
+    if (total % orbitSize !== 0) {
+      return { path: null, steps: 0 };
+    }
     const quarterLen = total / orbitSize;
 
     const visited = new Int32Array(stride * (H + 2 * pad));
@@ -77,6 +84,15 @@ class Solver {
         if (c < pad || c >= W + pad || r < pad || r >= H + pad) {
           visited[r * stride + c] = -1;
         }
+      }
+    }
+    // Pre-mark user-blocked cells as -1 — pickCandidates filters them out
+    // for free since they fail the visited === 0 test, same as padding cells.
+    for (const key of blocked) {
+      const [c, r] = key.split(',').map((s) => parseInt(s, 10));
+      if (Number.isInteger(c) && Number.isInteger(r) &&
+          c >= 0 && c < W && r >= 0 && r < H) {
+        visited[(r + pad) * stride + (c + pad)] = -1;
       }
     }
     const at = (col, row) => (row + pad) * stride + (col + pad);

@@ -82,6 +82,20 @@ h1 {
 .cell.light { background: var(--color-light); }
 .cell.dark  { background: var(--color-dark);  }
 
+/* Blocked cells: solid dark grey with a diagonal hatch overlay. Comes
+   after .light/.dark so its specificity-equal rule wins by source order. */
+.cell.blocked {
+  background-color: #4a4a4a;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent 0,
+    transparent 4px,
+    rgba(255, 255, 255, 0.18) 4px,
+    rgba(255, 255, 255, 0.18) 8px
+  );
+  cursor: not-allowed;
+}
+
 .num {
   position: absolute;
   inset: 0;

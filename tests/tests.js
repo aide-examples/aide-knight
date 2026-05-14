@@ -136,6 +136,42 @@ test('Solver: 5x5 knight from light square has no tour (path = null)', () => {
   assertEq(r.path, null);
 });
 
+test('Solver: blocked cell makes the start invalid', () => {
+  const moves = Figures.generateBaseMoves('1,2');
+  const r = Solver.solve(8, 8, moves, 0, 0, {
+    heuristic: 'warnsdorff',
+    blocked: new Set(['0,0']),
+  });
+  assertEq(r.path, null);
+});
+
+test('Solver: 8x8 knight (0,0) with one blocked cell still solves', () => {
+  const moves = Figures.generateBaseMoves('1,2');
+  const r = Solver.solve(8, 8, moves, 0, 0, {
+    heuristic: 'warnsdorff',
+    blocked: new Set(['4,4']),  // a middle cell
+  });
+  // 63 cells (one excluded), open tour
+  assert(r.path, 'expected solution avoiding blocked cell');
+  assertEq(r.path.length, 63);
+  // Validate that the blocked cell is NOT in the path
+  for (const [c, r2] of r.path) {
+    assert(!(c === 4 && r2 === 4), 'blocked cell appeared in tour');
+  }
+});
+
+test('Solver: blocked count not divisible by orbit size returns null', () => {
+  // sym=axisV on 6x5 (orbit size 2), blocking a single asymmetric cell.
+  // 6*5 - 1 = 29 is not divisible by 2 → solver bails immediately.
+  const moves = Figures.generateBaseMoves('1,2');
+  const r = Solver.solve(6, 5, moves, 0, 0, {
+    heuristic: 'warnsdorff',
+    sym: 'axisV',
+    blocked: new Set(['2,2']),  // (5-1-2,2)=(3,2) not blocked, so set is asymmetric
+  });
+  assertEq(r.path, null);
+});
+
 test('Solver: 10x10 knight (0,0) Warnsdorff finds tour, Outside-In also', () => {
   const moves = Figures.generateBaseMoves('1,2');
   const r1 = Solver.solve(10, 10, moves, 0, 0, { heuristic: 'warnsdorff' });
