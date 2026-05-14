@@ -32,6 +32,8 @@ class I18n {
         sym_axisV: 'Axis (V)',
         sym_point: 'Point',
         sym_rot90: 'Rotation 90°',
+        cellLabel:    (c, r) => `Column ${c}, row ${r}`,
+        boardLabel:   'Chess board',
       },
       de: {
         title:          "Knight's Tour",
@@ -57,6 +59,8 @@ class I18n {
         sym_axisV: 'Achse (V)',
         sym_point: 'Punkt',
         sym_rot90: 'Rotation 90°',
+        cellLabel:    (c, r) => `Spalte ${c}, Reihe ${r}`,
+        boardLabel:   'Schachbrett',
       },
     };
   }

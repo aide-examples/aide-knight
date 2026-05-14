@@ -63,7 +63,10 @@
 
   // Re-apply translations whenever the language changes (catches both the
   // dropdown event and any future hash-driven changes).
-  i18n.subscribe(() => ui.applyI18n());
+  i18n.subscribe(() => {
+    ui.applyI18n();
+    board.applyI18n();
+  });
 
   ui.onLangChange = (code) => {
     state.lang = code;

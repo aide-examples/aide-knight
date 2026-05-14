@@ -111,3 +111,21 @@ h1 {
   color: var(--color-ink);
 }
 #status2 { margin-top: 0.3rem; }
+
+/* a11y: visible focus ring on keyboard navigation. :focus-visible only
+   activates for keyboard or otherwise-keyboard-equivalent focus, so mouse
+   clicks don't leave a lingering outline. z-index lifts it above numbers. */
+.cell:focus-visible {
+  outline: 3px solid #c0392b;
+  outline-offset: -3px;
+  z-index: 3;
+}
+#controls input:focus-visible,
+#controls select:focus-visible,
+#controls2 select:focus-visible,
+#controls2 button:focus-visible,
+#controls3 select:focus-visible,
+#controls3 input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}

@@ -8,6 +8,7 @@
 class Board {
   constructor(boardEl) {
     this.boardEl = boardEl;
+    this.boardEl.setAttribute('role', 'grid');
     this.W = 0;
     this.H = 0;
     this.cellByIdx = [];
@@ -15,6 +16,7 @@ class Board {
     this.currentCellPx = 60;
     this.onCellClick = null;
     this._setupResizeListener();
+    this._setupKeyboardNav();
   }
 
   static SVG_NS = 'http://www.w3.org/2000/svg';
@@ -40,11 +42,38 @@ class Board {
     document.documentElement.style.setProperty('--overlay-display', state.showLines ? 'block' : 'none');
   }
 
+  // Re-applies translated aria-labels on the board and all cells.
+  // Called from app.js when the language changes.
+  applyI18n() {
+    const i18n = I18n.getInstance();
+    this.boardEl.setAttribute('aria-label', i18n.t('boardLabel'));
+    for (const cell of this.cellByIdx) {
+      if (!cell) continue;
+      const col = parseInt(cell.dataset.col, 10);
+      const row = parseInt(cell.dataset.row, 10);
+      cell.setAttribute('aria-label', i18n.t('cellLabel', col, row));
+    }
+  }
+
   _build() {
     this._applyCellSize();
     this.boardEl.innerHTML = '';
+    this.boardEl.setAttribute('aria-rowcount', this.H);
+    this.boardEl.setAttribute('aria-colcount', this.W);
+    this.boardEl.setAttribute('aria-label', I18n.getInstance().t('boardLabel'));
     this.cellByIdx = new Array(this.W * this.H);
 
+    // Roving tabindex: exactly one cell is focusable (tabindex=0); arrows
+    // move focus among cells and adjust the tabindex accordingly. Initial
+    // tab target: state.lastStart if set, else top-left (col 0, row H-1).
+    const state = AppState.getInstance();
+    const focusCell = (state.lastStart &&
+                      state.lastStart.col >= 0 && state.lastStart.col < this.W &&
+                      state.lastStart.row >= 0 && state.lastStart.row < this.H)
+      ? state.lastStart
+      : { col: 0, row: this.H - 1 };
+
+    const i18n = I18n.getInstance();
     const frag = document.createDocumentFragment();
     for (let row = this.H - 1; row >= 0; row--) {
       for (let col = 0; col < this.W; col++) {
@@ -52,6 +81,12 @@ class Board {
         cell.className = 'cell ' + ((row + col) % 2 === 0 ? 'dark' : 'light');
         cell.dataset.col = col;
         cell.dataset.row = row;
+        cell.setAttribute('role', 'gridcell');
+        // aria-rowindex/colindex are 1-based; top row is row 1 visually
+        cell.setAttribute('aria-rowindex', this.H - row);
+        cell.setAttribute('aria-colindex', col + 1);
+        cell.setAttribute('aria-label', i18n.t('cellLabel', col, row));
+        cell.tabIndex = (col === focusCell.col && row === focusCell.row) ? 0 : -1;
         cell.addEventListener('click', () => {
           if (this.onCellClick) this.onCellClick(col, row);
         });
@@ -65,7 +100,48 @@ class Board {
     this.overlay.setAttribute('id', 'overlay');
     this.overlay.setAttribute('viewBox', `0 0 ${this.W} ${this.H}`);
     this.overlay.setAttribute('preserveAspectRatio', 'none');
+    this.overlay.setAttribute('aria-hidden', 'true');  // decorative; tour is announced via status
     this.boardEl.appendChild(this.overlay);
+  }
+
+  _setupKeyboardNav() {
+    this.boardEl.addEventListener('keydown', (e) => {
+      const focused = document.activeElement;
+      if (!focused || !focused.classList || !focused.classList.contains('cell')) return;
+      let col = parseInt(focused.dataset.col, 10);
+      let row = parseInt(focused.dataset.row, 10);
+      let handled = true;
+      switch (e.key) {
+        case 'ArrowLeft':  col = Math.max(0, col - 1); break;
+        case 'ArrowRight': col = Math.min(this.W - 1, col + 1); break;
+        case 'ArrowUp':    row = Math.min(this.H - 1, row + 1); break;  // visually up = higher rank
+        case 'ArrowDown':  row = Math.max(0, row - 1); break;
+        case 'Home':       col = 0; break;
+        case 'End':        col = this.W - 1; break;
+        case 'PageUp':     row = this.H - 1; break;
+        case 'PageDown':   row = 0; break;
+        case 'Enter':
+        case ' ':
+          e.preventDefault();
+          if (this.onCellClick) this.onCellClick(col, row);
+          return;
+        default:
+          handled = false;
+      }
+      if (!handled) return;
+      e.preventDefault();
+      this._focusCell(col, row);
+    });
+  }
+
+  _focusCell(col, row) {
+    const old = this.boardEl.querySelector('.cell[tabindex="0"]');
+    if (old) old.tabIndex = -1;
+    const newCell = this.getCell(col, row);
+    if (newCell) {
+      newCell.tabIndex = 0;
+      newCell.focus();
+    }
   }
 
   _applyCellSize() {
