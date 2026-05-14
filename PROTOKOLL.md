@@ -298,3 +298,78 @@ Zugzähler 999 von 1000 — Warnsdorff durch, 0 Backtracks.
 ### Commit
 
 `72f15cd — Phase 5: visibility toggles for numbers and tour line`
+
+---
+
+## Phase 6 — Geschlossene Touren
+
+### Mikrofragen & Antworten (vorab)
+
+**Q: Wo soll die "Closed"-Checkbox sitzen?**
+A: An Reihe 3 angehängt — neben Numbers und Lines.
+
+**Q: Wie soll die Schließungslinie sich von der normalen Tour-Linie unterscheiden?**
+A: Gestrichelt, gleiche Farbe (rot). Klares Signal "gleicher Tour-Bestandteil, sondiert die Schließung".
+
+### Mikrofragen & Antworten (während der Implementierung — wichtig!)
+
+**Q (vom User mid-phase, kurz nach Start der Implementierung): Noch eine Idee für die geschlossene Tour: wenn man im Startfeld beginnt, dann müsste das *andere* Feld, von dem aus das Startfeld erreichbar ist, so lange wie möglich nicht benutzt werden. Künstlich verschlechterte "hohe Freiheitsgrade"-Zahl, oder algorithmisches Aussparen bis zum vorletzten Zug.**
+
+**A: Das ist *exakt* die klassische Schwenk-Technik in praktischer Form — und didaktisch der wertvollste Moment der bisherigen Übung.** Statt des in `knight.md` Zeile 21 skizzierten Beide-Enden-Verfahrens (alternating ends) liefert die Bias-Idee dasselbe Ziel mit dramatisch weniger Code:
+
+- Vor der Suche: Maske der Startnachbarn berechnen (Felder, von denen aus der Springer das Startfeld erreichen kann).
+- In Warnsdorff/Outside-In: diesen Startnachbarn einen Strafwert von 1000 auf den Onward-Count addieren (alle realen Counts ≤ 8) — Stable-Sort schiebt sie ans Ende.
+- Bei Path-Vollständigkeit: prüfen, ob der letzte Pfad-Eintrag in der Startnachbar-Maske liegt. Wenn ja, geschlossen, fertig. Wenn nein, Backtrack via normaler exhausted-path Logik.
+
+**Vorteile gegenüber Alternating-Ends:**
+- Eindimensional, kein Deque, ein Pfad-Array
+- Code-Erweiterung: ~10 Zeilen statt ~80
+- Bei Warnsdorff/Outside-In hocheffektiv (Smoke-Tests unten)
+
+Für Brute Force greift der Bias nicht (kein Scoring) — der Solver verlässt sich dort allein auf das Schließungs-Backtracking, ist also langsam wie offene Brute-Force, aber korrekt.
+
+Das ist ein lehrreicher Moment für Phase 12: **der User hat den Algorithmus verbessert**. Nicht der AI-Assistent. Das Beide-Enden-Verfahren war ein plausibler, aber unnötig schwerer Vorschlag in der Spec; im Live-Dialog kam der User auf die elegantere Variante und hat damit auch demonstriert, dass die in `knight.md` notierten Ideen nicht heilig sind.
+
+### Implementation
+
+- **State:** `wantClosed: boolean`, persistiert in `localStorage`.
+- **Solver:** `solve(startCol, startRow, closed)` — der `closed`-Parameter aktiviert die Bias-Logik.
+  - `startNbrs: Uint8Array` markiert Startnachbar-Felder vor dem DFS.
+  - `pickCandidates` addiert `CLOSURE_PENALTY = 1000` auf Startnachbar-Scores (für Warnsdorff und Outside-In; für Brute Force kein Bias).
+  - Auf `path.length === total`: Wenn `closed`, zusätzlich prüfen ob `startNbrs[at(last)]`; nur dann Erfolg. Sonst fällt der Loop durch zum normalen Backtrack-Pfad (top frame ist leer, weil alle Felder besucht).
+- **Rendering:** `renderTour(path, isClosed)` — bei `isClosed` zusätzlich ein `<line>` von `path[N-1]` zu `path[0]` als Dashed-Stroke (`stroke-dasharray='0.18 0.12'`). Liegt im selben `#overlay`, wird also vom Lines-Checkbox-Toggle automatisch mitversteckt.
+- **i18n:** neuer String `closedLabel` (en: "Closed", de: "Geschlossen").
+
+### Smoke-Tests (Node-Standalone)
+
+| Konfig | Schritte | Zeit | Bemerkung |
+|---|---|---|---|
+| 8×8 Knight (0,0) Warnsdorff CLOSED | 85 | 1 ms | 22 Backtracks — Bias greift, geschlossene Tour |
+| 8×8 Knight (3,3) Warnsdorff CLOSED | 63 | 8 ms | **0 Backtracks** — gerader Lauf direkt zur geschlossenen Tour |
+| 6×6 Knight (0,0) Warnsdorff CLOSED | 35 | 0 ms | 0 Backtracks |
+| 10×10 Knight (0,0) Warnsdorff CLOSED | 99 | 0 ms | 0 Backtracks |
+| 5×5 Knight (0,0) Warnsdorff CLOSED | 3 470 157 | 425 ms | Beweist exhaustiv: keine geschlossene Tour |
+| 5×5 Knight (2,2) Warnsdorff CLOSED | 1 283 153 | 146 ms | Dito, vom Zentrum |
+| 8×8 Knight (0,0) Outside-In CLOSED | 77 | 1 ms | Auch mit anderer Heuristik effektiv |
+| 8×8 Knight (0,0) Warnsdorff OPEN | 63 | 0 ms | Regression-Check: Open-Mode unverändert |
+
+Der Bias kostet auf lösbaren Konfigurationen typischerweise 10-40 % zusätzliche Schritte gegenüber Open-Mode. Auf nicht-lösbaren beweist die Suche die Nicht-Existenz in unter einer Sekunde (5×5).
+
+**Mathematischer Hintergrund 5×5 nicht-geschlossen:** Auf 5×5 hat das Brett 13 dunkle + 12 helle Felder. Eine geschlossene Tour müsste Länge 25 sein, dabei abwechselnd Farben besuchen, *und* zum Startfeld zurückkehren. Aus dem Startfeld der Farbe X folgt: 13 × X + 12 × ¬X, der letzte Zug (Zug Nr. 25, Farbe X) müsste sich aber mit dem ersten Zug (Farbe X) per Springerzug verbinden — Springerzug wechselt aber die Farbe. Widerspruch. Keine 5×5-Tour ist geschlossen.
+
+### User-Test
+
+![Phase 6: 9×8 Knight (Warnsdorff) geschlossene Tour mit gestrichelter Schließungslinie](_assets/phase-6-closed.png)
+
+Test: **9×8 Brett, Knight, Warnsdorff, Closed-Modus, Start (0,7)**. Lines an, Numbers aus (Geometrie-Sicht). Solver liefert in 71 Schritten eine geschlossene Tour über alle 72 Felder. Die gestrichelte rote Schließungslinie ist oben links sichtbar — verbindet das letzte Tour-Feld mit dem Startfeld.
+
+Bestätigt funktionierende Features:
+- Closed-Checkbox in Reihe 3 zwischen Lines und (nichts) — siehe Header
+- Solver mit Bias findet geschlossene Touren mit minimaler Mehrarbeit
+- Schließungslinie visuell deutlich (gestrichelt) von der Tour-Linie unterscheidbar
+- Lines-Toggle versteckt auch die Schließungslinie (gemeinsamer `#overlay`)
+- localStorage-Persistenz der Closed-Flag
+
+### Commit
+
+`8025365 — Phase 6: closed-tour mode via start-neighbour bias (Schwenk technique)`
