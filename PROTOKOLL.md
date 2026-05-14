@@ -255,3 +255,46 @@ Bestätigt funktionierende Features:
 ### Commit
 
 `bec8718 — Phase 4: heuristic + figure + mix-button + full-state localStorage`
+
+---
+
+## Phase 5 — Sichtbarkeits-Toggles
+
+### Mikrofragen & Antworten
+
+**Q: Wo sollen die beiden Checkboxen sitzen?**
+A: Eigene dritte Reihe — Reihe 1 W/H, Reihe 2 Heuristik/Figur/Mix, Reihe 3 Numbers/Lines. Klar gegliedert.
+
+**Q: Sollen Nummern automatisch unsichtbar werden, wenn die Schrift sowieso unlesbar wäre?**
+A: Ja, dynamisch nach Lesbarkeit — Schwelle bei Font ≥ 9 px (entspricht Zellgröße ≥ 28 px, weil Font = 0.32 · Zellgröße). Die Checkbox bleibt aktiv, nur der Render wird unterdrückt.
+
+### Implementation
+
+- **CSS-Custom-Properties als Toggle-Mechanismus:** `--num-display` und `--overlay-display` steuern `display:` der entsprechenden Elemente. Flippen einer Checkbox schreibt nur die CSS-Variable um — kein DOM-Eingriff, gerenderte Tour bleibt unangetastet.
+- **Auto-Hide-Logik** in `applyVisibility()` — wird aus `applyCellSize()` mitaufgerufen, damit beim Resize die Schwelle automatisch nachgezogen wird:
+  ```js
+  const numbersUsable = showNumbers && (currentCellPx * 0.32) >= NUM_FONT_MIN_PX;
+  ```
+  Wenn der User das Fenster verkleinert und die Zellgröße unter 28 px fällt: Nummern verschwinden, Checkbox bleibt aktiv.
+- **Persistenz:** `showNumbers` und `showLines` werden mit dem übrigen State in `localStorage` gespeichert.
+- **i18n:** zwei neue Strings (`numbersLabel`, `linesLabel`), in `en` und `de` mitgepflegt.
+
+### User-Test
+
+**Test 1 — Lines-only auf 7×7 Knight (Warnsdorff):**
+
+![Phase 5: 7×7 Tour nur als Liniengeometrie](_assets/phase-5-lines-only.png)
+
+Bei deaktivierter "Numbers"-Checkbox erscheint die Tour ausschließlich als rote Liniengeometrie. Lehrreich für die visuelle Symmetriebetrachtung: jeder Schnittpunkt erzählt etwas über die Springer-Bewegungsstruktur.
+
+**Test 2 — Numbers-only auf 40×25 Knight (Warnsdorff):**
+
+![Phase 5: 40×25 Tour nur mit durchnummerierten Feldern (1000 Schritte)](_assets/phase-5-numbers-only.png)
+
+Brett knapp am Render-Limit: 40 × 25 = 1000 Felder, Zellgröße ≈ 30 px (begrenzt durch Viewport-Höhe), Font ≈ 9.6 px — gerade noch über der 9-px-Schwelle, Nummern werden also gerendert und sind klein-aber-lesbar. Würde der User auf 41×25 erhöhen, fiele die Schrift unter 9 px und die Nummern würden auto-hidden, ohne dass er die Checkbox ändert. Sauberes Beispiel für die dynamische Schwelle.
+
+Zugzähler 999 von 1000 — Warnsdorff durch, 0 Backtracks.
+
+### Commit
+
+`72f15cd — Phase 5: visibility toggles for numbers and tour line`
