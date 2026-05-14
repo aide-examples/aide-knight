@@ -451,3 +451,89 @@ Phase-7-Akzeptanzkriterien aus Master-Plan:
 ### Commit
 
 `5a17443 — Phase 7: symmetric tours (axisV / point / rot90) via orbit-aware DFS`
+
+---
+
+## Phase 7.5 — T-Contract Erkenntnis & Retrofit
+
+### Der Moment der Erkenntnis
+
+Während Phase 7 (Symmetrien) noch lief und die siebte Phase ohne grobe Probleme durchgezogen wurde, kam der **wichtigste Augenblick der ganzen Übung** in einem User-Halbsatz:
+
+> "Wir kommen fachlich gut voran. Trotzdem hab ich Sorgenfalten im GEsicht. Ahnst du warum?"
+
+Mehrere Vermutungen wurden nacheinander gesammelt (didaktische Tiefe vs. Mischpublikum-Niveau; Code-Aufblähung; `knight.md`-Vorgriff in Phase 7; Zeitbudget) — alle vertretbar, keine richtig. Erst auf Userseite kam das Stichwort:
+
+> "Ich helf dir mit einem Stichwort: NFR"
+
+Und dann die volle Diagnose, die der Master-Plan und ich konsequent übersehen hatten:
+
+> "Unser gesamtes Vorgehen hat einen Designmangel. Wir hätten von Anfang an einen T-Contract (Technical Platform, NFRs) haben sollen und parallel dazu den F-Contract mit der Funktionalität. Ein guter T-Contract hätte replay-fähige Tests gefordert und du hättest daraufhin automatisch (hoffe ich) URL-Args eingeführt, über die zusammen mit CURL eine Automatisierung möglich ist. Wir hätten von Anfang an die i18n-Frage geklärt und Device-Rotation-Fragen und andere Ergonomie-Basics nicht im Rahmen des F-Contracts diskutiert."
+
+Konkret übersehen:
+- `knight.md` Z. 18 ("Code soll sehr gut objektorientiert strukturiert sein") wurde als Phase-11-Refactor missinterpretiert → 686 Zeilen monolithische `app.js` mit globalen `let`-Variablen statt einer OO-Architektur ab Tag 1.
+- Replay-Testbarkeit via URL-Args: nie eingeführt → kein automatischer Regressionstest möglich.
+- i18n: halb-implementiert als feature-artige STRINGS-Map, ohne Switcher, ohne Consolidation.
+- Resize/Reflow: nachgereicht in Phase 3 nach User-Hinweis.
+- Accessibility: nach sieben Phasen weiterhin null.
+
+Vier Optionen wurden abgewogen, der User wählte **(b) T-Contract retroaktiv + Architektur-Skelett vorziehen**, mit explizitem Phase-12-Eingeständnis. Die Übung gewinnt damit ihr stärkstes "Was Profis anders machen"-Lehrstück.
+
+### Schritt A — T_CONTRACT.md
+
+Eigenes Dokument neben `knight.md` und `knight_plan.md` (Commit `d1f9d60`). Inhalt in 8 Kategorien (Architektur, Plattform-Constraints, Replay-Testbarkeit, Responsivität, i18n, a11y, Performance/Robustheit, Code-Qualität) plus deferred-Liste. Der Header räumt offen ein, dass das Dokument zu spät kommt — diese Ehrlichkeit ist Teil des didaktischen Wertes.
+
+### Schritt B — Retrofit (5 Commits)
+
+| Commit | Inhalt |
+|---|---|
+| `07d7860` | **B1: OO-Split** der 686-Zeilen-`app.js` in 8 Module unter `js/` (i18n / figures / solver / state / board / renderer / ui / app). Verhalten bit-genau identisch, jede Datei < 250 Zeilen. Erfüllt `knight.md` Z. 18. |
+| `ffa89e2` | **B2: URL-Hash-State.** AppState serialisiert den vollständigen Zustand in `location.hash` (W, H, fig, heur, sym, closed, numbers, lines, mix, start). Auf Page-Load wird der Hash geparst; `start=col,row` triggert Auto-Solve. Replay-Test-Mechanismus damit verfügbar: `chrome --headless --screenshot 'index.html#W=6&H=6&fig=1,2&heur=outsideIn&sym=rot90&start=0,3'`. |
+| `d4330fe` | **B3: i18n-Vollständigkeit + Sprach-Switcher.** Alle UI-Strings (inkl. Dropdown-Werte) routen via `data-i18n`-Attribute durch I18n. Sprach-Dropdown sichtbar in Reihe 1, persistiert per URL + localStorage. Adding eine Sprache = ein Eintrag in STRINGS. |
+| `7ba4c2c` | **B4: a11y-Basics.** `role="grid"` mit `role="gridcell"`, `aria-label "Column C, row R"` (i18n'd), Roving-Tabindex, Pfeil/Home/End/PgUp/PgDn-Navigation, Enter/Space als Klick. `aria-live="polite"` auf Status-Zeilen, `aria-hidden` auf dem SVG-Overlay (decorative). `:focus-visible`-Outlines auf Cells und Controls. |
+| `f6f4251` | **B5: Test-Skelett.** `tests/test.html` + `tests/tests.js`: kompakter Browser-Runner (`test`, `assert`, `assertEq`, `validateTour`, `validateClosure`) für die pure Module. 11 Test-Fälle decken `Figures.generateBaseMoves`, `Solver.isSymTypeValid`, `symOrbit`, `symTransform` und `solve` ab — inkl. exakter Schritt-Zahl für 8×8 Warnsdorff (63), Closure-Bridge-Check für 8×8/(3,3) closed, Rotationsinvarianz `path[k+9] = rot90(path[k])` für 6×6 rot90, und der 5×5-Paritäts-Beweis (von hellem Startfeld kein Tour). |
+
+### Schritt D — CLAUDE.md-Prinzip
+
+Neue Sektion in `~/.claude/CLAUDE.md` direkt vor "Baseline-Verhalten ist kein Feature": **"F-Contract und T-Contract gehören gleichzeitig an den Anfang"** — mit Querverweis, der die Baseline-Regel als Spezialfall der breiteren F/T-Regel kenntlich macht. Anti-Pattern explizit benannt: eine Spec-Nebenbemerkung "Code soll OO sein" als gleichwertiges F-Feature behandeln statt als plattform-prägendes T-Item.
+
+### Was nicht retrofitted wurde (transparent in T_CONTRACT.md)
+
+- Touch-Substitut für Rechtsklick → Phase-8-Mikrofrage
+- Soft-Step-Limit / Cancel-Dialog → Phase 9
+- Cross-Browser-Lauf (Firefox, Safari) → vor Phase 12 manuell
+- Farb-Blind-Safe Palette → optional, niedrig
+- Mobile-Portrait-Layout → optional, niedrig
+
+### Lehrwert für Phase 12
+
+Dieser Phase-7.5-Block ist der vermutlich **wichtigste einzelne Lehrabschnitt** des ganzen Projekts. Er zeigt nicht nur, *was* der T-Contract ist — sondern auch:
+
+1. Wie er sich in der Praxis als *Nichtgesehenes* zeigt: ein User mit Sorgenfalten, ein AI-Assistent, der vier falsche Vermutungen liefert, bevor das Stichwort vom Menschen kommt.
+2. Welche unsichtbaren Kosten anfallen, wenn er fehlt: 686 Zeilen Monolith zu zerschneiden ist teurer als 8 schmale Module von Anfang an zu schreiben.
+3. Wie der Retrofit aussieht — und wie er sich öffentlich machen lässt, ohne den ganzen Vorlauf zu verschämen.
+
+Die saubere Trennung F-Contract / T-Contract ist *das* methodische Take-away für AI-Pair-Programming-Praktiker.
+
+### Verifikation Phase-7.5-Akzeptanz
+
+User-Test nach allen 5 B-Commits (siehe Browser-Hardreload):
+- ✓ Default 8×8 Knight Warnsdorff identisches Verhalten zur Pre-7.5-Version
+- ✓ Phase-7-Demo (6×6 Knight Outside-In Rot-90°) reproduziert die rotationssymmetrische Tour aus `_assets/phase-7-rot90.png`
+- ✓ URL-Replay: `index.html#W=6&H=6&fig=1,2&heur=outsideIn&sym=rot90&start=0,3` baut State und löst auto
+- ✓ Tab/Pfeil-Keyboard-Navigation auf Brett, Enter/Space löst Solve aus
+- ✓ Sprach-Switcher en ↔ de wechselt alle UI-Strings inkl. Dropdown-Werte
+- ✓ `tests/test.html` öffnen: alle Assertions grün
+- ✓ Modul-Größen: `wc -l js/*.js` zeigt jede Datei < 250 Zeilen
+
+### Commits dieser Phase
+
+```
+d1f9d60 — Phase 7.5 A: introduce T_CONTRACT.md
+07d7860 — Phase 7.5 B1: split app.js into 8 OO modules
+ffa89e2 — Phase 7.5 B2: state via URL hash for replay testability
+d4330fe — Phase 7.5 B3: i18n consolidation + visible language switcher
+7ba4c2c — Phase 7.5 B4: a11y basics
+f6f4251 — Phase 7.5 B5: test skeleton
+```
+Plus diese PROTOKOLL.md-Ergänzung (Commit C) und ein Eintrag in `~/.claude/CLAUDE.md` (Commit D, außerhalb dieses Repos).

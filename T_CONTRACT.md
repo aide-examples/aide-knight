@@ -8,18 +8,10 @@ Plattform- und Qualitäts-Verpflichtungen für aide-knight, parallel zum funktio
 
 ## 1. Architektur
 
-- **Objektorientiert ab Tag 1** (`knight.md` Z. 18). Klassen mit klaren Verantwortungen, kein globaler State außerhalb von Klassen.
-- **Multi-File von Anfang an.** Die Code-Basis wird in folgende Module gegliedert; jede Datei < 250 Zeilen:
-  - `js/i18n.js` — `I18n`-Klasse: Strings-Map, aktuelle Sprache, `t(key)`-Lookup, Listener für Sprach-Wechsel.
-  - `js/figures.js` — Statische Helper: `generateBaseMoves(figureKey)`, Figur-Liste, Padding-Berechnung.
-  - `js/solver.js` — `Solver`-Klasse: pure (keine DOM-Abhängigkeit), iteratives DFS, Heuristiken, Closure-Bias, Symmetrie-Bridge.
-  - `js/board.js` — `Board`-Klasse: Geometrie (W, H, cellPx), Cell-Render, Resize-Reaktion, Click-/Keyboard-Events.
-  - `js/renderer.js` — `Renderer`-Klasse: SVG-Overlay, Tour-Linie, Nummern, Schließungslinie.
-  - `js/state.js` — `AppState`-Klasse: Single Source of Truth aller Einstellungen, Serialisierung nach URL-Hash und localStorage.
-  - `js/ui.js` — `UI`-Klasse: Dropdown-/Checkbox-/Button-Wiring, ARIA-Updates.
-  - `js/app.js` — Orchestrierung: instanziiert + verdrahtet alle Module beim Laden.
-- **Pure Functions** für alle berechnenden Operationen. DOM-Zugriff strikt lokalisiert auf `board.js`, `renderer.js`, `ui.js`, `app.js`.
-- **Singletons via `getInstance()`** dort wo nötig (`I18n`, `AppState`). Direkte Imports/Module-Globals sind keine Architektur.
+- **Objektorientiert ab Tag 1** (`knight.md` Z. 18). Klassen mit klar abgegrenzten Verantwortungen; **kein globaler State außerhalb von Klassen**; kein "wir refactoren das später".
+- **Multi-File von Anfang an.** Mindestens die *grobe* Trennung Domain-Logik vs. State vs. View vs. Orchestrierung muss vor der ersten Codezeile stehen; die genaue Modul-Liste reift während der Implementierung. Anti-Pattern: alles in `app.js` mit Vermerk "Phase 11 splittet das später". **Jede Datei < 250 Zeilen** als harte Obergrenze — wenn überschritten, ist die Schnittführung schon falsch und gehört nachgezogen, nicht aufgeschoben.
+- **Reine Funktionen** für alle berechnenden Operationen (Solver, Move-Generierung, Symmetrie-Helfer). **DOM-Zugriff strikt lokalisiert** auf die View-/Wiring-Module.
+- **Single Source of Truth** für State: ein zentrales Modul kennt alle Einstellungen; UI- und Persistenz-Schichten kennen es einseitig. **Singletons via `getInstance()`** dort wo natürliche Einzigartigkeit besteht (i18n, App-State). Direkte Modul-Globals sind keine Architektur.
 
 ## 2. Plattform-Constraints
 
@@ -28,14 +20,11 @@ Plattform- und Qualitäts-Verpflichtungen für aide-knight, parallel zum funktio
 
 ## 3. Replay-Testbarkeit
 
-- **State als URL-Hash** deep-linkbar: jeder relevante Einstellungs-Zustand ist in einem URL-Hash kodiert, der per Copy/Paste oder Bookmark wiederherstellbar ist. Format:
-  ```
-  index.html#lang=en&W=8&H=8&fig=1,2&heur=warnsdorff&sym=none&closed=0&numbers=1&lines=1&mix=1,2;2,1;...&start=3,3
-  ```
-  - Beim Laden: Hash parsen → State setzen → Brett rendern. Wenn `start` gesetzt: Solver auto-trigger.
-  - Bei jeder State-Änderung: Hash aktualisieren (via `history.replaceState`, damit Browser-Verlauf nicht zugemüllt wird).
-- **Headless-CI-tauglich:** Mit `chrome --headless --screenshot` (oder Playwright/Puppeteer) und einer URL aus dem Hash lässt sich jeder Phase-Zustand reproduzieren und gegen ein Referenz-Bild diffen. Diese Möglichkeit muss ohne Code-Änderung existieren — sie ist die *Definition* von Replay-Testbarkeit.
-- **Pure-Function-Tests browserbasiert** in `tests/test.html` (lädt `js/solver.js`, `js/figures.js` und führt Assertions aus, ohne DOM). Mensch-lesbare Pass/Fail-Liste; CI-tauglich, weil `headless` mit Exit-Code arbeiten kann.
+- **State als URL-Hash** deep-linkbar: jeder relevante Einstellungs-Zustand ist im URL-Fragment kodiert und per Copy/Paste oder Bookmark wiederherstellbar. Das konkrete Schema (Parameter-Namen + Encoding) wird im State-Modul-Header dokumentiert und stabil gehalten.
+  - Beim Laden: Hash parsen → State setzen → Brett rendern. Ein Start-Cell-Parameter im Hash triggert Auto-Solve.
+  - Bei jeder State-Änderung: Hash aktualisieren via `history.replaceState`, damit der Browser-Verlauf nicht zugemüllt wird.
+- **Headless-CI-tauglich:** Mit `chrome --headless --screenshot` (oder Playwright/Puppeteer) plus einer State-tragenden URL lässt sich jeder Anwendungs-Zustand reproduzieren und gegen ein Referenz-Bild diffen. Diese Möglichkeit muss ohne Code-Änderung existieren — sie ist die *Definition* von Replay-Testbarkeit.
+- **Pure-Function-Tests browserbasiert:** ein dedizierter Test-Bereich lädt nur die DOM-freien Module und führt Assertions aus. Mensch-lesbare Pass/Fail-Liste; CI-tauglich, weil `headless` mit Exit-Code arbeiten kann.
 
 ## 4. Responsivität / Plattform-Ergonomie
 
@@ -46,9 +35,9 @@ Plattform- und Qualitäts-Verpflichtungen für aide-knight, parallel zum funktio
 
 ## 5. Internationalisierung
 
-- **i18n ist Architektur**, kein Feature. Zentrale Quelle in `js/i18n.js`. Alle UI-Texte — inklusive Dropdown-Option-Werte (Figuren-Namen, Heuristik-Namen, Symmetrie-Namen) — sind übersetzbar.
-- **Sprach-Switcher** als sichtbares Plattform-Element in der UI (Reihe 1). Persistiert via URL-Hash und localStorage.
-- **Gepflegte Sprachen:** Englisch (Default), Deutsch. Neue Sprache hinzufügen = ein Eintrag in der STRINGS-Map.
+- **i18n ist Architektur**, kein Feature. Zentrale STRINGS-Quelle in einem dedizierten i18n-Modul. Alle UI-Texte — inklusive Dropdown-Option-Werte (Figuren-, Heuristik-, Symmetrie-Namen) — sind übersetzbar; das Bestehen *einer* Sprache bedeutet noch keine i18n-Architektur.
+- **Sprach-Switcher** als sichtbares Plattform-Element in der UI. Persistiert via URL-Hash und localStorage.
+- **Gepflegte Sprachen:** Englisch (Default), Deutsch. Neue Sprache = ein Eintrag in der STRINGS-Map.
 
 ## 6. Accessibility (a11y)
 
@@ -67,9 +56,9 @@ Plattform- und Qualitäts-Verpflichtungen für aide-knight, parallel zum funktio
 
 ## 8. Code-Qualität
 
-- **Test-Skelett browserbasiert:** `tests/test.html` + `tests/tests.js` mit einfachem `assert()`-Helfer; Pass/Fail visuell und im Konsolen-Log.
-- **Beschreibungssatz** nach `#`-Header in jeder Markdown-Datei (globale CLAUDE.md-Regel).
-- **Modulgröße:** Jede Datei in `js/` < 250 Zeilen (entspricht der `knight_plan.md`-Vorgabe für Phase 11, hier aber von Tag 1 an).
+- **Test-Skelett browserbasiert** in einem dedizierten Test-Bereich, mit einfachem `assert()`-Helfer; Pass/Fail visuell und im Konsolen-Log. Tests laufen ohne Node-/npm-Abhängigkeiten — siehe Plattform-Constraint.
+- **Beschreibungssatz** nach `#`-Header in jeder Markdown-Datei (globale `CLAUDE.md`-Regel).
+- **Modulgröße:** Jede Code-Datei < 250 Zeilen (entspricht der `knight_plan.md`-Vorgabe für Phase 11, hier aber von Tag 1 an).
 
 ---
 
