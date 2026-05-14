@@ -1,8 +1,7 @@
-/* Knight's Tour — Phase 1: 8x8 chessboard, click reports cell coordinates.
+/* Knight's Tour — chessboard + tour rendering.
    Colours follow the classic chess scheme (chess.com / lichess defaults).
-   Text colour stays consistent on both field shades to avoid the visually
-   unsettled "white-on-dark / black-on-light" mix when we add tour numbers
-   in a later phase. */
+   Single ink colour for all text — keeps numbers legible on both field
+   shades. Tour line is drawn on an SVG overlay above the grid. */
 
 :root {
   --board-cell:    60px;
@@ -25,6 +24,8 @@ h1 {
 }
 
 #board {
+  position: relative;
+  z-index: 0;  /* form a stacking context: tour line above cells, numbers above line */
   display: grid;
   grid-template-columns: repeat(8, var(--board-cell));
   grid-template-rows:    repeat(8, var(--board-cell));
@@ -34,6 +35,7 @@ h1 {
 }
 
 .cell {
+  position: relative;
   cursor: pointer;
   transition: filter 0.1s;
 }
@@ -42,9 +44,32 @@ h1 {
 .cell.light { background: var(--color-light); }
 .cell.dark  { background: var(--color-dark);  }
 
-#status {
+.num {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: calc(var(--board-cell) * 0.32);
+  color: var(--color-ink);
+  pointer-events: none;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+#status, #status2 {
   margin-top: 1rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 1rem;
   color: var(--color-ink);
 }
+#status2 { margin-top: 0.3rem; }
