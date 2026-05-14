@@ -28,10 +28,12 @@ const figureSelect    = document.getElementById('figure-select');
 const mixBtn          = document.getElementById('mix-btn');
 const showNumbersBox  = document.getElementById('show-numbers');
 const showLinesBox    = document.getElementById('show-lines');
+const wantClosedBox   = document.getElementById('want-closed');
 const lblHeuristic    = document.getElementById('lbl-heuristic');
 const lblFigure       = document.getElementById('lbl-figure');
 const lblNumbers      = document.getElementById('lbl-numbers');
 const lblLines        = document.getElementById('lbl-lines');
+const lblClosed       = document.getElementById('lbl-closed');
 
 // --- i18n. To add a language: add an entry to STRINGS and switch LANG.
 const LANG = 'en';
@@ -46,6 +48,7 @@ const STRINGS = {
     mixBtn:         'Shuffle order',
     numbersLabel:   'Numbers',
     linesLabel:     'Lines',
+    closedLabel:    'Closed',
   },
   de: {
     title:       "Knight's Tour",
@@ -57,6 +60,7 @@ const STRINGS = {
     mixBtn:         'Reihenfolge mischen',
     numbersLabel:   'Nummern',
     linesLabel:     'Linien',
+    closedLabel:    'Geschlossen',
   },
 };
 const T = STRINGS[LANG];
@@ -69,6 +73,7 @@ lblFigure.textContent    = T.figureLabel;
 mixBtn.textContent       = T.mixBtn;
 lblNumbers.textContent   = T.numbersLabel;
 lblLines.textContent     = T.linesLabel;
+lblClosed.textContent    = T.closedLabel;
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -88,6 +93,7 @@ let figure = '1,2';
 let activeMoves = generateBaseMoves(figure);
 let showNumbers = true;
 let showLines   = true;
+let wantClosed  = false;
 let currentCellPx = 60;
 let lastStart = null;
 let cellByIdx;
@@ -127,6 +133,7 @@ function loadState() {
     activeMoves = isValidMoveOrder(s.moveOrder, base) ? s.moveOrder : base;
     if (typeof s.showNumbers === 'boolean') showNumbers = s.showNumbers;
     if (typeof s.showLines   === 'boolean') showLines   = s.showLines;
+    if (typeof s.wantClosed  === 'boolean') wantClosed  = s.wantClosed;
   } catch { /* ignore — start from defaults */ }
 }
 
@@ -134,7 +141,7 @@ function saveState() {
   try {
     localStorage.setItem(STATE_KEY, JSON.stringify({
       W, H, heuristic, figure, moveOrder: activeMoves,
-      showNumbers, showLines,
+      showNumbers, showLines, wantClosed,
     }));
   } catch { /* ignore — non-persistent mode */ }
 }
@@ -264,6 +271,12 @@ showLinesBox.addEventListener('change', () => {
   saveState();
 });
 
+wantClosedBox.addEventListener('change', () => {
+  wantClosed = wantClosedBox.checked;
+  saveState();
+  resolveLast();
+});
+
 function shuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -294,9 +307,9 @@ function onCellClick(col, row) {
   status2El.textContent = '';
   clearTour();
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    const result = solve(col, row);
+    const result = solve(col, row, wantClosed);
     if (result.path) {
-      renderTour(result.path);
+      renderTour(result.path, result.closed);
       status2El.textContent = T.solution(result.steps);
     } else {
       status2El.textContent = T.noSolution(result.steps);
@@ -305,7 +318,14 @@ function onCellClick(col, row) {
 }
 
 // --- Solver: iterative DFS, heuristic-aware candidate ordering ---
-function solve(startCol, startRow) {
+//
+// Closed-tour bias (Schwenk technique): mark the start cell's neighbours
+// as "save for last" by adding a large penalty to their heuristic score.
+// Warnsdorff/Outside-In will only pick them when forced — so the very last
+// move tends to land on one of them, giving a closed tour. Brute Force
+// has no scoring → no bias → relies purely on backtracking against the
+// closure check (slow but still correct).
+function solve(startCol, startRow, closed) {
   const moves = activeMoves;
   const heuristicNow = heuristic;
 
@@ -325,6 +345,16 @@ function solve(startCol, startRow) {
     }
   }
   const at = (col, row) => (row + pad) * stride + (col + pad);
+
+  // Start-neighbours mask: cells from which the move-set can reach the start.
+  // Used both for the heuristic bias AND for the closure check at the end.
+  const startNbrs = new Uint8Array(stride * (H + 2 * pad));
+  for (const [dc, dr] of moves) {
+    const idx = at(startCol + dc, startRow + dr);
+    if (visited[idx] === -1) continue;  // would be off-board
+    startNbrs[idx] = 1;
+  }
+  const CLOSURE_PENALTY = 1000;  // larger than any onward count (max ~8)
 
   // Outside-In: bigger Euclidean distance from board centre wins → smaller
   // "score" wins after the sign flip, so we can use a single ascending sort.
@@ -348,11 +378,14 @@ function solve(startCol, startRow) {
           if (visited[at(c + moves[i][0], r + moves[i][1])] === 0) cnt++;
         }
         scores[k] = cnt;
+        if (closed && startNbrs[at(c, r)]) scores[k] += CLOSURE_PENALTY;
       }
     } else { // outsideIn
       for (let k = 0; k < list.length; k++) {
-        const dx = list[k][0] - cx, dy = list[k][1] - cy;
+        const c = list[k][0], r = list[k][1];
+        const dx = c - cx, dy = r - cy;
         scores[k] = -(dx*dx + dy*dy);
+        if (closed && startNbrs[at(c, r)]) scores[k] += CLOSURE_PENALTY;
       }
     }
     // Sort indices to keep stability vs the move definition order on ties.
@@ -370,7 +403,16 @@ function solve(startCol, startRow) {
   const stack = [{ candidates: pickCandidates(startCol, startRow), nextIdx: 0 }];
 
   while (stack.length > 0) {
-    if (path.length === total) return { path, steps };
+    if (path.length === total) {
+      if (!closed) return { path, steps, closed: false };
+      // Closed mode: tour must end at a start-neighbour. The bias makes this
+      // overwhelmingly likely; if it failed, fall through and backtrack —
+      // the just-pushed top frame's candidates list is empty (all cells
+      // visited), so the next iteration triggers backtrack via the normal
+      // exhausted-candidates path.
+      const last = path[total - 1];
+      if (startNbrs[at(last[0], last[1])]) return { path, steps, closed: true };
+    }
 
     const top = stack[stack.length - 1];
     if (top.nextIdx >= top.candidates.length) {
@@ -400,7 +442,7 @@ function clearTour() {
   while (overlay.firstChild) overlay.removeChild(overlay.firstChild);
 }
 
-function renderTour(path) {
+function renderTour(path, isClosed) {
   const stash = [];
   for (let i = 0; i < path.length; i++) {
     const [c, r] = path[i];
@@ -424,6 +466,25 @@ function renderTour(path) {
   line.setAttribute('stroke-linejoin', 'round');
   line.setAttribute('stroke-linecap', 'round');
   overlay.appendChild(line);
+
+  if (isClosed) {
+    // Dashed closing arc from last tour cell back to the start. Same colour
+    // and stroke as the polyline so it reads as part of the same tour; the
+    // dash signals "this edge wasn't taken by a single move, it just closes
+    // the cycle".
+    const last  = path[path.length - 1];
+    const first = path[0];
+    const close = document.createElementNS(SVG_NS, 'line');
+    close.setAttribute('x1', last[0]  + 0.5);
+    close.setAttribute('y1', H - 1 - last[1]  + 0.5);
+    close.setAttribute('x2', first[0] + 0.5);
+    close.setAttribute('y2', H - 1 - first[1] + 0.5);
+    close.setAttribute('stroke', '#c0392b');
+    close.setAttribute('stroke-width', '0.08');
+    close.setAttribute('stroke-linecap', 'round');
+    close.setAttribute('stroke-dasharray', '0.18 0.12');
+    overlay.appendChild(close);
+  }
 }
 
 // --- Initial setup ---
@@ -434,6 +495,7 @@ heuristicSelect.value = heuristic;
 figureSelect.value    = figure;
 showNumbersBox.checked = showNumbers;
 showLinesBox.checked   = showLines;
+wantClosedBox.checked  = wantClosed;
 updateMixTooltip();
 buildBoard();
 statusEl.textContent  = T.clickPrompt;
