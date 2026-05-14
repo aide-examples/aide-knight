@@ -20,6 +20,9 @@ body {
 h1 {
   font-size: 1.4rem;
   margin: 0 0 1rem;
+  cursor: pointer;  /* signals 'click to reset' affordance (tooltip explains) */
+  user-select: none;
+  width: max-content;  /* so the clickable surface matches the visible text */
 }
 
 #controls, #controls2, #controls3 {

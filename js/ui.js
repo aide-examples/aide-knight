@@ -48,6 +48,7 @@ class UI {
     // titleEl is the visible <h1>, also driven by data-i18n once we add it,
     // but for now set explicitly since it has no data-i18n attribute yet.
     this.titleEl.textContent = t.t('title');
+    this.titleEl.title       = t.t('resetTooltip');
   }
 
   applyState() {

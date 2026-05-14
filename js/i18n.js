@@ -34,6 +34,7 @@ class I18n {
         sym_rot90: 'Rotation 90°',
         cellLabel:    (c, r) => `Column ${c}, row ${r}`,
         boardLabel:   'Chess board',
+        resetTooltip: 'Click to reset all settings to defaults',
       },
       de: {
         title:          "Knight's Tour",
@@ -61,6 +62,7 @@ class I18n {
         sym_rot90: 'Rotation 90°',
         cellLabel:    (c, r) => `Spalte ${c}, Reihe ${r}`,
         boardLabel:   'Schachbrett',
+        resetTooltip: 'Klicke zum Zurücksetzen aller Einstellungen',
       },
     };
   }

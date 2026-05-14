@@ -130,6 +130,18 @@
 
   board.setOnCellClick(onCellClick);
 
+  // Click on the page title resets every setting to its default. Useful when
+  // the URL hash has accumulated a shuffle / closed / symmetry combination
+  // and the user wants a clean slate. Tooltip surfaces the affordance.
+  ui.titleEl.addEventListener('click', () => {
+    Object.assign(state, AppState.DEFAULTS);
+    state.activeMoves = Figures.generateBaseMoves(state.figure);
+    state.lastStart = null;
+    i18n.setLanguage(state.lang);  // triggers i18n subscribers (ui + board)
+    ui.applyState();
+    rebuildBoard();
+  });
+
   // --- Initial setup ---
   ui.applyI18n();
   ui.applyState();
