@@ -373,3 +373,81 @@ Bestätigt funktionierende Features:
 ### Commit
 
 `8025365 — Phase 6: closed-tour mode via start-neighbour bias (Schwenk technique)`
+
+---
+
+## Phase 7 — Symmetrien (axisV / point / rot90)
+
+### Vorabklärung des Scopes
+
+`knight.md` Zeile 24 fordert nur **Rotationssymmetrie**. Der Master-Plan-Eintrag generalisiert auf axisV + point + rot90 — das geht über `knight.md` hinaus. Nach Rückfrage opt-in-Entscheidung: alle drei Typen mitnehmen.
+
+### Mikrofragen & Antworten
+
+**Q: Wo soll die Symmetrie-Kontrolle sitzen?** A: An Reihe 3 anhängen (neben Numbers/Lines/Closed).
+
+**Q: Was tun, wenn das Brett zur gewählten Symmetrie nicht passt?** A: Checkbox-Optionen einzeln auto-disablen. Klare UI-Semantik, keine versteckten Fallbacks.
+
+### Algorithmus: Shift-by-Quarter
+
+Statt eine Tour zu suchen und nachträglich auf Symmetrie zu prüfen, baut der Solver eine **Quarter-Path** der Länge `q = total / orbitSize` (2 für axisV/point, 4 für rot90) auf. Beim Platzieren einer Quarter-Zelle werden die Orbit-Mates implizit mitbesucht. Die *volle* Tour wird beim Rendern aus dem Quarter durch wiederholte Anwendung der Symmetrie-Transformation erzeugt:
+
+```
+axisV/point: full = quarter ++ transform(quarter)
+rot90:       full = quarter ++ rot90(quarter) ++ rot180(quarter) ++ rot270(quarter)
+```
+
+**Bridge-Constraint:** Der Übergang vom Ende des Quarter zum Anfang des nächsten Quarter im vollen Tour muss ein gültiger Figurenzug sein. Konkret: `path[q-1]` muss ein Springer-Nachbar von `symTransform(path[0])` sein. Das ist die **einzige zu prüfende Bridge** — alle weiteren Quarter-Übergänge folgen aus Rotations-/Spiegelungs-Invarianz der Move-Menge.
+
+**Closure-Bias erweitert:** Die Phase-6-Bias-Technik aus Schwenk's Toolkit muss angepasst werden. Naive Übertragung — "Knight-Neighbors von Bridge mit Penalty" — funktioniert nicht, weil das Platzieren einer Zelle `(c,r)` über die Orbit-Symmetrie auch `transform(c,r)` belegt. Wenn `transform(c,r)` ein Bridge-Neighbor ist, wäre dieser Closure-Kandidat damit unwiederbringlich verbraucht. **Fix:** Die Bias-Menge umfasst Bridge-Neighbors **und ihre Orbit-Mates**. Der Check bei `path.length === q` bleibt auf die Original-Bridge-Neighbors beschränkt (nur ein expliziter Closure-Treffer zählt).
+
+### Mathematische Restriktion: Farbparität
+
+Beim Implementieren stellte sich heraus, dass die Shift-by-Quarter-Struktur nicht für alle Brett-Konfigurationen Lösungen findet — selbst dort, wo Touren der genannten Symmetrie nachweislich existieren. **Grund:** der Bridge-Zug muss farbflippend sein (Springer-Eigenschaft), die Farbe von `path[q-1]` aber alterniert sich aus `path[0].color` plus q-1 Schritten, während die Farbe von `symTransform(path[0])` von der Transformation selbst abhängt:
+
+| Symmetrie | Farb-Effekt der Transformation | Bridge funktioniert wenn |
+|---|---|---|
+| axisV (W gerade) | flippt Farbe | q ungerade → W·H ≡ 2 mod 4 |
+| point (beide gerade) | erhält Farbe | q gerade → immer (W·H ≡ 0 mod 4 garantiert) |
+| point (gemischte Parität) | flippt Farbe | q ungerade → empirisch unzureichend |
+| rot90 (N gerade) | flippt Farbe | q ungerade → N ≡ 2 mod 4 |
+
+Aus dieser Analyse folgen die strikteren Validitäts-Regeln in `isSymTypeValid()`:
+
+- **axisV**: `W % 2 === 0 && (W*H) % 4 === 2` — funktioniert auf 6×3, 6×5, 6×7, 10×3, 10×5, 10×7, ... *Nicht* auf 8×8.
+- **point**: `W % 2 === 0 && H % 2 === 0` — funktioniert auf 6×6, 8×8, 10×10, 6×4, 10×6, ...
+- **rot90**: `W === H && W % 2 === 0 && (W*W) % 8 === 4` — funktioniert auf 6×6, 10×10, 14×14, ... *Nicht* auf 8×8.
+
+**Wichtige didaktische Anmerkung:** Diese Einschränkungen sind eine *Eigenschaft des Algorithmus*, nicht eine mathematische Unmöglichkeit. Tatsächlich existieren rot90-symmetrische Touren auch auf 8×8 — sie haben aber eine andere Pfad-Struktur (nicht shift-by-quarter), die ein verfeinerter Solver bräuchte. Das ist genau der Trade-off von Phase 7: knappe, lokale Algorithmus-Erweiterung deckt einen interessanten Teilraum ab; vollständige Symmetriesuche bräuchte einen größeren Refactor (Post-Symmetrie-Check + andere Pfad-Struktur).
+
+### Smoke-Tests (Node-Standalone)
+
+| Konfig | Schritte | Zeit | Bemerkung |
+|---|---|---|---|
+| 8×8 Knight POINT (0,0) | 31 | 1 ms | Sauber durch |
+| 8×8 Knight POINT (3,3) | 45 | 1 ms | Auch von Zentrum |
+| 6×6 Knight ROT90 (0,0) | 18 | 0 ms | 0 Backtracks |
+| 10×10 Knight ROT90 (0,0) | 680 | 0 ms | Bias greift effektiv |
+| 6×5 Knight AXIS-V (0,0) | 40 | 0 ms | Korrekt findet axis-symm. Tour |
+| 10×5 Knight AXIS-V (0,0) | 2 646 | 0 ms | Bias greift |
+| 8×8 Knight ROT90 | exhausted nach 1.2 M Schritten | 263 ms | Beweist: kein rot90-Tour mit shift-by-quarter-Struktur auf 8×8 |
+
+Bemerkenswert: das ursprünglich verwendete Bias-Schema (nur Bridge-Neighbors, ohne Orbit-Erweiterung) ließ AxisV auf 8×8 50 M Schritte erfolglos laufen. Erst der **erweiterte** Bias (Orbit-Mates von Bridge-Neighbors gleichmit-penalisiert) öffnete die anderen Konfigurationen — und führte gleichzeitig zur Erkenntnis, dass 8×8-AxisV strukturell ausgeschlossen ist.
+
+### User-Test
+
+![Phase 7: 6×6 Knight, Outside-In, Rot-90°-Symmetrie](_assets/phase-7-rot90.png)
+
+Test-Konfiguration: **6×6 Brett, Knight (1,2), Heuristik Outside-In(!), Symmetrie Rot-90°, Start (0,3)**. Lines an, Numbers aus (Geometrie-Sicht). Solver liefert in **10 Schritten** eine 4-fach rotationssymmetrische geschlossene Tour über alle 36 Felder. Die 4-fache Rotationssymmetrie ist visuell sofort lesbar — die Tour zeichnet eine Windrad-artige geometrische Figur. Die gestrichelte Schließungslinie unten links sichtbar.
+
+Closed-Checkbox erscheint korrekt **disabled+checked** (grauer Rahmen mit Häkchen) — Symmetrie impliziert Closure, UI signalisiert das ohne den User zu verwirren.
+
+Phase-7-Akzeptanzkriterien aus Master-Plan:
+- ✓ axisV-Lösung auf passendem Brett sichtbar (6×5, 6×7 etc.)
+- ✓ point-Lösung auf 8×8 sichtbar
+- ✓ rot90 auf 6×6 sichtbar (und 10×10)
+- Auto-Disable für inkompatible Konfigurationen funktioniert
+
+### Commit
+
+`5a17443 — Phase 7: symmetric tours (axisV / point / rot90) via orbit-aware DFS`
