@@ -83,10 +83,11 @@ for (const inp of [wInput, hInput]) {
   });
 }
 
-// --- Build / rebuild board for current W and H ---
-function buildBoard() {
-  // Cell size: fits viewport, capped at 60px for normal boards, with a
-  // small floor so the line stays drawable on extreme sizes (100×200).
+// Pure CSS-side resize: recompute cellPx for the current viewport and apply.
+// Does NOT touch the DOM — a rendered tour stays intact, only the geometry
+// scales. The SVG overlay scales via its viewBox, the .num font-size scales
+// via the --board-cell variable, so the tour visually adapts for free.
+function applyCellSize() {
   const maxBoardW = Math.max(120, window.innerWidth  - 80);
   const maxBoardH = Math.max(120, window.innerHeight - 200);
   const cellPx = Math.max(2, Math.min(60,
@@ -97,7 +98,23 @@ function buildBoard() {
   boardEl.style.gridTemplateRows    = `repeat(${H}, ${cellPx}px)`;
   boardEl.style.width  = (W * cellPx) + 'px';
   boardEl.style.height = (H * cellPx) + 'px';
+}
 
+// Trailing-edge debounce: apply size once the user stops resizing for 80ms.
+// Large boards (e.g. 200×100 = 20 000 cells) take measurable time to relayout —
+// running on every raw resize event would lag during the drag.
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  if (resizeTimer) clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    resizeTimer = null;
+    applyCellSize();
+  }, 80);
+});
+
+// --- Build / rebuild board for current W and H ---
+function buildBoard() {
+  applyCellSize();
   boardEl.innerHTML = '';
   cellByIdx = new Array(W * H);
 
