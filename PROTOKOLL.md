@@ -755,3 +755,55 @@ Beide Use-Cases vom User bestätigt:
 0b994e2 — Phase 9: chunked async search with time budget, stop button, re-click-continue
 ```
 Plus `~/.claude/CLAUDE.md`-Sektion "Dependency Injection bevorzugt vor Singleton-Pattern" (außerhalb dieses Repos, ungetrackt).
+
+---
+
+## Phase 10 — Startfeld-Sensitivität
+
+### Mikrofragen & Antworten
+
+**Q: Wie sollen die Sensitivitäts-Werte visuell dargestellt werden?**
+A: Heatmap + Zahl. Hintergrundfarbe pro Feld nach log-Skala (grün=schnell, rot=langsam, grau=keine Lösung im Budget); kompakte Schritt-Anzahl als Label im Feld (`63`, `12k`, `1.2M`).
+
+**Q: Was passiert beim Klick auf ein Feld nach einer Sensitivitäts-Anzeige?**
+A: Sofort reguläre Tour starten. Heatmap verschwindet, normale Tour wird gerendert.
+
+**Q: Sensitivitäts-Lauf bei aktiver Symmetrie oder Closed-Modus?**
+A: Mitnehmen wie aktuelle Settings. Jeder Cell-Lauf nutzt die aktuell konfigurierte Heuristik + Symmetrie + Closed + Blocks.
+
+**Q (während Implementierung): Gilt das Zeit-Budget pro Einzelsuche?**
+A: Ja. `state.timeBudget` Sekunden pro Zelle. Bei `budget=2` und 64 Zellen also Worst Case ~2 min Gesamtdauer; Zellen, die schnell lösen, beenden früher und der Scan rückt sofort weiter — typisch viel schneller als Worst Case.
+
+### Implementation
+
+- **`SensitivityScan` in `js/driver.js`** — neue Klasse neben `SearchDriver`. `run()` ist async: iteriert über alle nicht-blockierten Zellen, baut pro Zelle einen frischen `Solver` mit aktuellen Settings, läuft ihn in 50-ms-Chunks bis `'found'`/`'exhausted'` oder bis `state.timeBudget` erreicht. Cooperative yields (`await new Promise(r => setTimeout(r, 0))`) sowohl zwischen Solver-Chunks als auch zwischen Zellen — Browser bleibt responsiv, Stop-Button wirkt sofort. Token-basierte Cancellation wie `SearchDriver`.
+- **Heatmap-Rendering in `js/renderer.js`** — `setSensitivityCell(col, row, value, minLog, maxLog)` setzt Background-Color inline + appended ein `.num.sens`-Label. `recolorSensitivity(results, minLog, maxLog)` repaintet alle Zellen, damit der log-Ramp normalisiert bleibt während neue Werte hinzukommen. `_heatColor` ist HSL-basiert (Hue 120 grün → 0 rot). `_compactStepCount` formatiert `1234` → `1234`, `12345` → `12k`, `1234567` → `1.2M`, `null` → `—`.
+- **Modul-Hygiene:** Heatmap zog Board ursprünglich über 250 Zeilen → Verlagerung zu Renderer (semantisch sauberer: Board = Zell-DOM/Events; Renderer = paints on cells). Sensitivity-Loop zog `app.js` ebenfalls über 250 → Extraktion als `SensitivityScan` in `driver.js`. Beide Module landen wieder im T-Contract-Rahmen.
+- **UI-Wiring:** Sensitivity-Button in `#search-controls` neben Stop, `hidden` per Default. `SearchDriver` zeigt ihn nach `'found'`; `SensitivityScan` zeigt ihn nach Scan-Ende; `onCellClick`/`rebuildBoard` verstecken ihn. Stop-Handler ist *unified*: wenn ein Scan läuft → `theSensitivity.cancel()`; sonst → `theDriver.stop()`.
+- **i18n:** drei neue Strings (`sensitivityBtn`, `sensitivityRunning(i, n)`, `sensitivityDone(n)`) für `en` und `de`.
+
+### User-Test
+
+![Phase 10: 8×8 Knight Outside-In, vollständige Sensitivitäts-Heatmap](_assets/phase-10-sensitivity.png)
+
+Test-Konfiguration: **8×8 Knight, Heuristik = Outside-In, kein Symmetry/Closed/Block, time budget = 10 s**. Sensitivity-Scan komplettiert alle 64 Felder; Status: "Sensitivity computed for 64 cells."
+
+**Auffällige Datenstruktur:** die Outside-In-Heuristik produziert einen sehr ungleichen Schwierigkeitsteppich:
+- Viele grüne Zellen mit `63` Schritten (Outside-In findet hier sauber durch, kein Backtracking)
+- Mehrere rote Zellen mit `547` Schritten — ungefähr 8.7-mal mehr als die einfachen Fälle
+- Eine Mittelschicht mit Zahlen 73, 75, 91, 113, 139, 179, 187 etc. (gelb-grünes Spektrum)
+
+Vergleich mit Warnsdorff (didaktischer Bonus für Phase 12): Warnsdorff produziert auf 8×8 Knight eine fast einheitliche Landschaft (alle Felder ≈ 63 Schritte). Outside-In zeigt also einen *erheblich* heterogenen Charakter — manche Startfelder sind für Outside-In leicht, andere kosten 8-9× mehr Arbeit. Die Sensitivitäts-Visualisierung macht diesen Unterschied zwischen Heuristiken auf einen Blick erfassbar.
+
+Bestätigt funktionierende Features:
+- ✓ Sensitivity-Button erscheint *nach* erster Lösung, vorher hidden
+- ✓ Live-Status während Scan zeigt Fortschritt ("cell K/64")
+- ✓ Heatmap-Ramp normalisiert sich während der Scan läuft
+- ✓ Kompakte Step-Labels passen in die Zellen
+- ✓ "0 / 7" Status zeigt: vor dem Sensitivity-Klick war (0, 7) das letzte Startfeld — bleibt erhalten
+- ✓ Stop-Button cancelt mid-scan
+- ✓ Klick auf eine Heatmap-Zelle nach Scan → Heatmap weg, reguläre Tour erscheint
+
+### Commit
+
+`e7ebf10 — Phase 10: per-cell sensitivity scan with live heatmap`
