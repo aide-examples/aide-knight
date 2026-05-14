@@ -537,3 +537,90 @@ d4330fe — Phase 7.5 B3: i18n consolidation + visible language switcher
 f6f4251 — Phase 7.5 B5: test skeleton
 ```
 Plus diese PROTOKOLL.md-Ergänzung (Commit C) und ein Eintrag in `~/.claude/CLAUDE.md` (Commit D, außerhalb dieses Repos).
+
+---
+
+## Phase 8 — Blockierbare Felder
+
+### Mikrofragen & Antworten
+
+**Q: Visuelle Darstellung blockierter Felder?**
+A: Dunkelgrau (`#4a4a4a`) mit diagonaler Schraffur (`repeating-linear-gradient`). Eindeutig vom Schachfarben-Schema unterscheidbar, klassisches "blocked"-Aussehen. Plus `cursor: not-allowed` als Mikro-Affordance.
+
+**Q: Wie blockiert ein Touch- oder Tastatur-Nutzer ein Feld (T-Contract-Konsequenz: mausspezifische Geste = Substitut nötig)?**
+A: Drei Eingabewege auf einen einzigen `onCellBlock`-Handler:
+- **Maus:** Rechtsklick (`contextmenu`-Event, Default unterdrückt).
+- **Touch:** Long-Press (500 ms `pointerdown` ohne Loslassen). Der anschließende Click wird via `longPressFired`-Flag unterdrückt, damit nicht doppelt getriggert wird.
+- **Keyboard:** Shift+Enter / Shift+Space auf fokussierter Zelle.
+
+**Q: Symmetrie + Block-Interaktion?**
+A: Auto-Orbit-Erweiterung. Wenn Symmetrie aktiv und User toggelt ein Feld, wird in app.js der gesamte Orbit unter der aktuellen Symmetrie umgeschaltet — 2 Zellen für axisV/point, 4 für rot90. Damit bleibt der Block-Set symmetry-kompatibel.
+
+### Implementation
+
+- **`AppState.blockedCells`** ist ein `Set<string>` von `"col,row"`-Schlüsseln. Persistenz: localStorage als Array + URL-Hash als `block=c1,r1;c2,r2;...`. URL-Eintrag nur wenn nicht-leer (Default-Bereinigungs-Regel von Phase 7.5).
+- **Solver `opts.blocked`:** Cells werden vor dem DFS auf `-1` markiert — identisch zur Padding-Bordüre, also keine extra Branch im `pickCandidates`. `total = W*H - |blocked|`; wenn das nicht durch `orbitSize` teilbar ist, bricht der Solver sofort mit `null` ab (z.B. asymmetrischer Block unter aktiver Symmetrie).
+- **`Board._wireCellEvents`:** Alle drei Eingabewege in einem privaten Helfer; setzt `pressTimer` für Long-Press, hört auf `contextmenu`, und `longPressFired` blockiert den nachfolgenden Click.
+- **`Board.applyBlockClasses()`:** Reflektiert `state.blockedCells` auf die `.blocked`-CSS-Klasse auf allen Zellen. Wird beim Board-Build und nach jedem Toggle aufgerufen.
+- **Dimension-Change Pruning:** Wenn der User W oder H verkleinert, werden Blocks außerhalb des neuen Bretts automatisch aus dem Set entfernt.
+- **Title-Click Reset:** Räumt zusätzlich auch `blockedCells`.
+
+### Bug-Story: Der hängende Test
+
+Lehrreich genug, um hier festzuhalten — ich hatte als zweiten neuen Test-Fall in `tests/tests.js` geschrieben:
+
+```js
+test('Solver: 8x8 knight (0,0) with one blocked cell still solves', () => {
+  const r = Solver.solve(8, 8, moves, 0, 0, {
+    heuristic: 'warnsdorff',
+    blocked: new Set(['4,4']),
+  });
+  // ...
+});
+```
+
+Beim Test-Run im Browser hing die Testseite. Node-Probe bestätigte: **Warnsdorff allein auf 8×8 mit einer einzelnen zentralen blockierten Zelle terminiert nicht in 5 Sekunden** — wahrscheinlich nie. Die Heuristik gerät in eine pathologische Backtracking-Region; die normalerweise saubere Springer-Symmetrie der 8×8-Springergraph-Lösungen ist durch das fehlende Zentralfeld zerschnitten.
+
+**User-Hinweis war direkt + nützlich:**
+> "Du kannst das Muster nehmen, das ich verwendet habe, die Lösung ist sofort da..."
+
+mit der vollständigen URL als Reproduktions-Recipe (Replay-Test in Action!):
+```
+…#heur=outsideIn&sym=point&mix=…&start=7,7&block=6,6;1,1;1,6;6,1;3,4;4,3;4,4;3,3
+```
+
+Ersetzt durch genau dieses Setting (Outside-In + Point-Symmetrie + 8 symmetrische Blöcke, Start anschließend auf `(0,1)` umgestellt für noch schnelleren Lauf): findet die 56-Zell-geschlossene Tour in 45 Schritten / wenige ms. Lehrwert für Phase 12:
+
+> **Ein Test ist nicht "richtig", nur weil er Code prüft.** Er ist erst dann richtig, wenn er auch *terminiert*. Pathologische Eingaben für Heuristiken finden ist nicht-trivial, und die einfachste Vorsichtsmaßnahme ist: **echte User-Konfigurationen testen, nicht erfundene**. Der User wusste, welcher Block-Stil mit welchen Settings funktioniert — die URL-basierte Replay-Architektur (Phase 7.5 B2) machte es möglich, diese Konfig in einer Zeile vom User-Browser zum Node-Probe zu übertragen.
+
+### Smoke-Tests (Node-Standalone, Stand nach Bugfix)
+
+| Konfig | Ergebnis |
+|---|---|
+| 8×8 Knight Warnsdorff, kein Block | 63 steps / 2 ms |
+| User-Pattern: 8×8 OI Point 8 Blocks (0,1) | found len=56 steps=45 / ms |
+| User-Pattern: dito ab (7,7) | found len=56 steps=4209 / ~13 ms |
+| Start-Zelle blockiert | `path=null` sofort |
+| Asymmetrischer Block unter axisV | `path=null` sofort (`total % orbitSize !== 0`) |
+
+### User-Test
+
+![Phase 8: 8×8 mit 8 point-symmetrischen Blöcken, Outside-In, 56-Zell-Tour](_assets/phase-8-blocks-point.png)
+
+Test-Setup: **8×8, Knight, Outside-In, Point-Symmetrie, 8 blockierte Felder, gemischte Move-Order, Start `(0,6)`**. Die 8 Blöcke bilden ein point-symmetrisches "Maskenmuster" (4 Paare). Lösung erscheint in 45 Schritten — saubere geschlossene Tour über 56 Felder, gestrichelte Schließungslinie sichtbar (oben links).
+
+Bestätigt funktionierende Features:
+- ✓ Rechtsklick togglet Block (Browser-Kontextmenü unterdrückt)
+- ✓ Auto-Orbit-Erweiterung unter Point: ein Klick → zwei Zellen ändern sich
+- ✓ Solver respektiert Blocks; Tour-Länge = 64 - 8 = 56
+- ✓ Closing-Linie auch mit Blocks
+- ✓ URL-Hash enthält `block=...` (Phase-7.5-Replay-Mechanismus trägt)
+- ✓ `tests/test.html` mit 12 Cases läuft komplett grün (nach Bugfix)
+
+### Commits
+
+```
+9edead7 — Phase 8: blockable cells via right-click / long-press / Shift+Enter
+16523e8 — Phase 8 follow-up: replace hanging Warnsdorff-block test with confirmed user pattern
+a9e5df5 — Phase 8 follow-up: faster start cell for the block-pattern test
+```
