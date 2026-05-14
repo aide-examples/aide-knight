@@ -26,8 +26,12 @@ const hInput     = document.getElementById('h-input');
 const heuristicSelect = document.getElementById('heuristic-select');
 const figureSelect    = document.getElementById('figure-select');
 const mixBtn          = document.getElementById('mix-btn');
+const showNumbersBox  = document.getElementById('show-numbers');
+const showLinesBox    = document.getElementById('show-lines');
 const lblHeuristic    = document.getElementById('lbl-heuristic');
 const lblFigure       = document.getElementById('lbl-figure');
+const lblNumbers      = document.getElementById('lbl-numbers');
+const lblLines        = document.getElementById('lbl-lines');
 
 // --- i18n. To add a language: add an entry to STRINGS and switch LANG.
 const LANG = 'en';
@@ -40,6 +44,8 @@ const STRINGS = {
     heuristicLabel: 'Heuristic',
     figureLabel:    'Figure',
     mixBtn:         'Shuffle order',
+    numbersLabel:   'Numbers',
+    linesLabel:     'Lines',
   },
   de: {
     title:       "Knight's Tour",
@@ -49,6 +55,8 @@ const STRINGS = {
     heuristicLabel: 'Heuristik',
     figureLabel:    'Figur',
     mixBtn:         'Reihenfolge mischen',
+    numbersLabel:   'Nummern',
+    linesLabel:     'Linien',
   },
 };
 const T = STRINGS[LANG];
@@ -59,6 +67,8 @@ titleEl.textContent  = T.title;
 lblHeuristic.textContent = T.heuristicLabel;
 lblFigure.textContent    = T.figureLabel;
 mixBtn.textContent       = T.mixBtn;
+lblNumbers.textContent   = T.numbersLabel;
+lblLines.textContent     = T.linesLabel;
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -76,9 +86,17 @@ let H = 8;
 let heuristic = 'warnsdorff';
 let figure = '1,2';
 let activeMoves = generateBaseMoves(figure);
+let showNumbers = true;
+let showLines   = true;
+let currentCellPx = 60;
 let lastStart = null;
 let cellByIdx;
 let overlay;
+
+// Below this font size, numbers are unreadable noise — hide them even if
+// the "Numbers" checkbox is on. Threshold reapplied on every resize and
+// every render.
+const NUM_FONT_MIN_PX = 9;
 
 // --- localStorage persistence (full state) ---
 const STATE_KEY = 'aide-knight-state-v1';
@@ -107,6 +125,8 @@ function loadState() {
     if (['1,2', '1,4', '2,3', '3,4'].includes(s.figure)) figure = s.figure;
     const base = generateBaseMoves(figure);
     activeMoves = isValidMoveOrder(s.moveOrder, base) ? s.moveOrder : base;
+    if (typeof s.showNumbers === 'boolean') showNumbers = s.showNumbers;
+    if (typeof s.showLines   === 'boolean') showLines   = s.showLines;
   } catch { /* ignore — start from defaults */ }
 }
 
@@ -114,6 +134,7 @@ function saveState() {
   try {
     localStorage.setItem(STATE_KEY, JSON.stringify({
       W, H, heuristic, figure, moveOrder: activeMoves,
+      showNumbers, showLines,
     }));
   } catch { /* ignore — non-persistent mode */ }
 }
@@ -125,11 +146,23 @@ function applyCellSize() {
   const cellPx = Math.max(2, Math.min(60,
     Math.floor(Math.min(maxBoardW / W, maxBoardH / H))));
 
+  currentCellPx = cellPx;
   document.documentElement.style.setProperty('--board-cell', cellPx + 'px');
   boardEl.style.gridTemplateColumns = `repeat(${W}, ${cellPx}px)`;
   boardEl.style.gridTemplateRows    = `repeat(${H}, ${cellPx}px)`;
   boardEl.style.width  = (W * cellPx) + 'px';
   boardEl.style.height = (H * cellPx) + 'px';
+  applyVisibility();
+}
+
+// Numbers and tour line each have a checkbox; numbers additionally auto-hide
+// when the resulting font would be unreadable (< NUM_FONT_MIN_PX). Visibility
+// is driven by two CSS custom properties so toggling doesn't touch the DOM.
+function applyVisibility() {
+  const fontPx = currentCellPx * 0.32;
+  const numbersUsable = showNumbers && fontPx >= NUM_FONT_MIN_PX;
+  document.documentElement.style.setProperty('--num-display',     numbersUsable ? 'flex'  : 'none');
+  document.documentElement.style.setProperty('--overlay-display', showLines     ? 'block' : 'none');
 }
 
 // Trailing-edge debounce so big boards (200×100 = 20 000 cells) don't lag
@@ -217,6 +250,18 @@ mixBtn.addEventListener('click', () => {
   updateMixTooltip();
   saveState();
   resolveLast();
+});
+
+showNumbersBox.addEventListener('change', () => {
+  showNumbers = showNumbersBox.checked;
+  applyVisibility();
+  saveState();
+});
+
+showLinesBox.addEventListener('change', () => {
+  showLines = showLinesBox.checked;
+  applyVisibility();
+  saveState();
 });
 
 function shuffle(arr) {
@@ -387,6 +432,8 @@ wInput.value = W;
 hInput.value = H;
 heuristicSelect.value = heuristic;
 figureSelect.value    = figure;
+showNumbersBox.checked = showNumbers;
+showLinesBox.checked   = showLines;
 updateMixTooltip();
 buildBoard();
 statusEl.textContent  = T.clickPrompt;

@@ -22,23 +22,24 @@ h1 {
   margin: 0 0 1rem;
 }
 
-#controls, #controls2 {
+#controls, #controls2, #controls3 {
   margin-bottom: 0.6rem;
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-#controls2 {
+#controls3 {
   margin-bottom: 1rem;
 }
 
-#controls label, #controls2 label {
+#controls label, #controls2 label, #controls3 label {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   font-size: 0.95rem;
 }
+#controls3 label { cursor: pointer; }
 
 #controls input, #controls2 select {
   padding: 0.2rem 0.4rem;
@@ -82,7 +83,8 @@ h1 {
   position: absolute;
   inset: 0;
   z-index: 2;
-  display: flex;
+  /* display toggled via --num-display; flex for centering when shown */
+  display: var(--num-display, flex);
   align-items: center;
   justify-content: center;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -95,6 +97,8 @@ h1 {
   position: absolute;
   inset: 0;
   z-index: 1;
+  /* display toggled via --overlay-display; block when shown */
+  display: var(--overlay-display, block);
   width: 100%;
   height: 100%;
   pointer-events: none;
