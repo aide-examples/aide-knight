@@ -1,18 +1,26 @@
-// Knight's Tour — 8×8 chessboard, iterative DFS + Warnsdorff solver.
+// Knight's Tour — variable W×H chessboard, iterative DFS + Warnsdorff.
 //
-// Coord convention: col = 0 is the leftmost file, row = 0 is the bottom rank
-// (a1 = (0,0), chess standard). The CSS grid fills top-to-bottom, so the build
-// loop iterates row 7 (top) down to row 0 (bottom) — visual layout matches
-// the chess convention. Field colour follows (row + col) % 2 === 0 → dark.
+// Coord convention: col = 0 leftmost file, row = 0 bottom rank (chess style).
+// The CSS grid fills top-to-bottom, so the build loop iterates row = H-1
+// (top) down to row = 0 (bottom). Field colour follows (row + col) % 2 === 0
+// → dark, which makes a1 = (0,0) a dark square on any W×H board.
+//
+// Padding strategy: the solver's "visited" array has a border of pad cells
+// pre-marked as blocked (-1). pad = max axis-distance of any move in the
+// active move set, so candidate generation can skip the explicit
+// out-of-bounds check — the padding cells fail the (visited === 0) test for
+// the same reason a tour cell does. This is also the foundation for the
+// custom-blocked-cells feature in Phase 8.
 //
 // Step counter: every forward attempt AND every backtrack counts +1
-// (per knight.md "Das Zurücknehmen eines vorherigen Zugs gilt als weiterer Zug").
+// (per knight.md: "Das Zurücknehmen eines vorherigen Zugs gilt als weiterer Zug").
 
-const BOARD_SIZE = 8;
 const boardEl    = document.getElementById('board');
 const titleEl    = document.getElementById('title');
 const statusEl   = document.getElementById('status');
 const status2El  = document.getElementById('status2');
+const wInput     = document.getElementById('w-input');
+const hInput     = document.getElementById('h-input');
 
 // --- i18n. To add a language: add an entry to STRINGS and switch LANG.
 const LANG = 'en';
@@ -33,9 +41,8 @@ const STRINGS = {
 const T = STRINGS[LANG];
 
 document.documentElement.lang = LANG;
-document.title    = T.title;
+document.title       = T.title;
 titleEl.textContent  = T.title;
-statusEl.textContent = T.clickPrompt;
 
 const KNIGHT_MOVES = [
   [ 1,  2], [ 2,  1], [ 2, -1], [ 1, -2],
@@ -44,31 +51,80 @@ const KNIGHT_MOVES = [
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-// --- Build cells ---
-const cellByIdx = new Array(BOARD_SIZE * BOARD_SIZE);
+// --- Mutable board state, reassigned by buildBoard() ---
+let W = 8;
+let H = 8;
+let cellByIdx;   // logical W*H array of DOM cells
+let overlay;     // SVG overlay element
 
-for (let row = BOARD_SIZE - 1; row >= 0; row--) {
-  for (let col = 0; col < BOARD_SIZE; col++) {
-    const cell = document.createElement('div');
-    cell.className = 'cell ' + ((row + col) % 2 === 0 ? 'dark' : 'light');
-    cell.dataset.col = col;
-    cell.dataset.row = row;
-    cell.addEventListener('click', () => onCellClick(col, row));
-    boardEl.appendChild(cell);
-    cellByIdx[row * BOARD_SIZE + col] = cell;
-  }
+// --- Input wiring ---
+function readDimensions() {
+  const newW = Math.max(1, parseInt(wInput.value, 10) || W);
+  const newH = Math.max(1, parseInt(hInput.value, 10) || H);
+  wInput.value = newW;
+  hInput.value = newH;
+  if (newW === W && newH === H) return false;
+  W = newW;
+  H = newH;
+  return true;
 }
 
-// SVG overlay: one unit per cell, viewBox auto-scales to board size.
-const overlay = document.createElementNS(SVG_NS, 'svg');
-overlay.setAttribute('id', 'overlay');
-overlay.setAttribute('viewBox', `0 0 ${BOARD_SIZE} ${BOARD_SIZE}`);
-overlay.setAttribute('preserveAspectRatio', 'none');
-boardEl.appendChild(overlay);
+function onDimensionChange() {
+  if (!readDimensions()) return;
+  buildBoard();
+  statusEl.textContent  = T.clickPrompt;
+  status2El.textContent = '';
+}
+
+for (const inp of [wInput, hInput]) {
+  inp.addEventListener('change', onDimensionChange);
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); inp.blur(); onDimensionChange(); }
+  });
+}
+
+// --- Build / rebuild board for current W and H ---
+function buildBoard() {
+  // Cell size: fits viewport, capped at 60px for normal boards, with a
+  // small floor so the line stays drawable on extreme sizes (100×200).
+  const maxBoardW = Math.max(120, window.innerWidth  - 80);
+  const maxBoardH = Math.max(120, window.innerHeight - 200);
+  const cellPx = Math.max(2, Math.min(60,
+    Math.floor(Math.min(maxBoardW / W, maxBoardH / H))));
+
+  document.documentElement.style.setProperty('--board-cell', cellPx + 'px');
+  boardEl.style.gridTemplateColumns = `repeat(${W}, ${cellPx}px)`;
+  boardEl.style.gridTemplateRows    = `repeat(${H}, ${cellPx}px)`;
+  boardEl.style.width  = (W * cellPx) + 'px';
+  boardEl.style.height = (H * cellPx) + 'px';
+
+  boardEl.innerHTML = '';
+  cellByIdx = new Array(W * H);
+
+  const frag = document.createDocumentFragment();
+  for (let row = H - 1; row >= 0; row--) {
+    for (let col = 0; col < W; col++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell ' + ((row + col) % 2 === 0 ? 'dark' : 'light');
+      cell.dataset.col = col;
+      cell.dataset.row = row;
+      cell.addEventListener('click', () => onCellClick(col, row));
+      frag.appendChild(cell);
+      cellByIdx[row * W + col] = cell;
+    }
+  }
+  boardEl.appendChild(frag);
+
+  overlay = document.createElementNS(SVG_NS, 'svg');
+  overlay.setAttribute('id', 'overlay');
+  overlay.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  overlay.setAttribute('preserveAspectRatio', 'none');
+  boardEl.appendChild(overlay);
+}
 
 // --- Click handler ---
 function onCellClick(col, row) {
-  statusEl.textContent = `${col} / ${row}`;
+  statusEl.textContent  = `${col} / ${row}`;
   status2El.textContent = '';
   clearTour();
   const result = solve(col, row);
@@ -80,20 +136,36 @@ function onCellClick(col, row) {
   }
 }
 
-// --- Solver: iterative DFS + Warnsdorff ---
-// Iterative (not recursive) from the start so later phases (variable W×H,
-// up to 100×200) won't blow the JS call stack.
+// --- Solver: iterative DFS + Warnsdorff, padded visited array ---
 function solve(startCol, startRow) {
-  const total = BOARD_SIZE * BOARD_SIZE;
-  const visited = new Int32Array(total);
+  // pad = max axis distance of any move, so a candidate that lands in the
+  // padding ring fails the visited-check naturally (no bounds branch needed).
+  let pad = 0;
+  for (const [dc, dr] of KNIGHT_MOVES) {
+    const d = Math.max(Math.abs(dc), Math.abs(dr));
+    if (d > pad) pad = d;
+  }
+  const stride = W + 2 * pad;
+  const total  = W * H;
+  const visited = new Int32Array(stride * (H + 2 * pad));
+  for (let r = 0; r < H + 2 * pad; r++) {
+    for (let c = 0; c < W + 2 * pad; c++) {
+      if (c < pad || c >= W + pad || r < pad || r >= H + pad) {
+        visited[r * stride + c] = -1;
+      }
+    }
+  }
+  // (col, row) → padded index
+  const at = (col, row) => (row + pad) * stride + (col + pad);
+
   const path = [];
   let steps = 0;
 
-  visited[startRow * BOARD_SIZE + startCol] = 1;
+  visited[at(startCol, startRow)] = 1;
   path.push([startCol, startRow]);
 
   const stack = [{
-    candidates: warnsdorffSort(startCol, startRow, visited),
+    candidates: warnsdorffSort(startCol, startRow, visited, at),
     nextIdx: 0,
   }];
 
@@ -103,7 +175,7 @@ function solve(startCol, startRow) {
     const top = stack[stack.length - 1];
     if (top.nextIdx >= top.candidates.length) {
       const popped = path.pop();
-      visited[popped[1] * BOARD_SIZE + popped[0]] = 0;
+      visited[at(popped[0], popped[1])] = 0;
       stack.pop();
       steps++;
       continue;
@@ -111,10 +183,10 @@ function solve(startCol, startRow) {
 
     const [nc, nr] = top.candidates[top.nextIdx++];
     steps++;
-    visited[nr * BOARD_SIZE + nc] = path.length + 1;
+    visited[at(nc, nr)] = path.length + 1;
     path.push([nc, nr]);
     stack.push({
-      candidates: warnsdorffSort(nc, nr, visited),
+      candidates: warnsdorffSort(nc, nr, visited, at),
       nextIdx: 0,
     });
   }
@@ -122,25 +194,23 @@ function solve(startCol, startRow) {
   return { path: null, steps };
 }
 
-function warnsdorffSort(col, row, visited) {
+function warnsdorffSort(col, row, visited, at) {
+  // Entries: [col, row, onwardCount] — the count slot is sorted on; callers
+  // only destructure [col, row] from each entry.
   const scored = [];
   for (const [dc, dr] of KNIGHT_MOVES) {
     const nc = col + dc, nr = row + dr;
-    if (nc < 0 || nc >= BOARD_SIZE || nr < 0 || nr >= BOARD_SIZE) continue;
-    if (visited[nr * BOARD_SIZE + nc] !== 0) continue;
-    scored.push([nc, nr, countOnward(nc, nr, visited)]);
+    if (visited[at(nc, nr)] !== 0) continue;
+    scored.push([nc, nr, countOnward(nc, nr, visited, at)]);
   }
   scored.sort((a, b) => a[2] - b[2]);
-  return scored.map(([c, r]) => [c, r]);
+  return scored;
 }
 
-function countOnward(col, row, visited) {
+function countOnward(col, row, visited, at) {
   let count = 0;
   for (const [dc, dr] of KNIGHT_MOVES) {
-    const nc = col + dc, nr = row + dr;
-    if (nc < 0 || nc >= BOARD_SIZE || nr < 0 || nr >= BOARD_SIZE) continue;
-    if (visited[nr * BOARD_SIZE + nc] !== 0) continue;
-    count++;
+    if (visited[at(col + dc, row + dr)] === 0) count++;
   }
   return count;
 }
@@ -155,18 +225,22 @@ function clearTour() {
 }
 
 function renderTour(path) {
+  const frag = document.createDocumentFragment();
+  const stash = [];
   for (let i = 0; i < path.length; i++) {
     const [c, r] = path[i];
-    const cell = cellByIdx[r * BOARD_SIZE + c];
     const num = document.createElement('div');
     num.className = 'num';
     num.textContent = i + 1;
-    cell.appendChild(num);
+    stash.push([cellByIdx[r * W + c], num]);
   }
-  // SVG coords: cell center = col + 0.5 horizontally, (BOARD_SIZE-1-row) + 0.5 vertically
-  // (row 0 is the bottom rank but visually the bottom row, so we mirror y).
+  for (const [cell, num] of stash) cell.appendChild(num);
+
+  // SVG: viewBox is 0..W × 0..H; cell center = col + 0.5 horizontally,
+  // (H - 1 - row) + 0.5 vertically (row 0 is the bottom rank but visually
+  // the bottom row, so we mirror y).
   const points = path
-    .map(([c, r]) => `${c + 0.5},${BOARD_SIZE - 1 - r + 0.5}`)
+    .map(([c, r]) => `${c + 0.5},${H - 1 - r + 0.5}`)
     .join(' ');
   const line = document.createElementNS(SVG_NS, 'polyline');
   line.setAttribute('points', points);
@@ -177,3 +251,7 @@ function renderTour(path) {
   line.setAttribute('stroke-linecap', 'round');
   overlay.appendChild(line);
 }
+
+// --- Initial build ---
+buildBoard();
+statusEl.textContent = T.clickPrompt;
