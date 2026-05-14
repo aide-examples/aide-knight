@@ -61,6 +61,16 @@
 
   // --- Event wiring ---
 
+  // Re-apply translations whenever the language changes (catches both the
+  // dropdown event and any future hash-driven changes).
+  i18n.subscribe(() => ui.applyI18n());
+
+  ui.onLangChange = (code) => {
+    state.lang = code;
+    i18n.setLanguage(code);  // triggers subscribers (incl. ui.applyI18n)
+    state.save();
+  };
+
   ui.onDimensionChange = (W, H) => {
     if (W === state.W && H === state.H) return;
     state.W = W;

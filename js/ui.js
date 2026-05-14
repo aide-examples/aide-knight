@@ -23,14 +23,10 @@ class UI {
     this.showLinesBox    = document.getElementById('show-lines');
     this.wantClosedBox   = document.getElementById('want-closed');
     this.symmetrySelect  = document.getElementById('symmetry-select');
-    this.lblHeuristic    = document.getElementById('lbl-heuristic');
-    this.lblFigure       = document.getElementById('lbl-figure');
-    this.lblNumbers      = document.getElementById('lbl-numbers');
-    this.lblLines        = document.getElementById('lbl-lines');
-    this.lblClosed       = document.getElementById('lbl-closed');
-    this.lblSymmetry     = document.getElementById('lbl-symmetry');
+    this.langSelect      = document.getElementById('lang-select');
 
     this.onDimensionChange = null;
+    this.onLangChange      = null;
     this.onHeuristicChange = null;
     this.onFigureChange    = null;
     this.onMixClick        = null;
@@ -40,20 +36,23 @@ class UI {
     this.onSymTypeChange     = null;
   }
 
+  // Push current i18n strings to all elements with a data-i18n attribute,
+  // plus the document title. The title bar is not a data-i18n element so
+  // we set it explicitly.
   applyI18n() {
     const t = I18n.getInstance();
-    this.titleEl.textContent      = t.t('title');
-    this.lblHeuristic.textContent = t.t('heuristicLabel');
-    this.lblFigure.textContent    = t.t('figureLabel');
-    this.mixBtn.textContent       = t.t('mixBtn');
-    this.lblNumbers.textContent   = t.t('numbersLabel');
-    this.lblLines.textContent     = t.t('linesLabel');
-    this.lblClosed.textContent    = t.t('closedLabel');
-    this.lblSymmetry.textContent  = t.t('symmetryLabel');
+    document.title = t.t('title');
+    for (const el of document.querySelectorAll('[data-i18n]')) {
+      el.textContent = t.t(el.dataset.i18n);
+    }
+    // titleEl is the visible <h1>, also driven by data-i18n once we add it,
+    // but for now set explicitly since it has no data-i18n attribute yet.
+    this.titleEl.textContent = t.t('title');
   }
 
   applyState() {
     const s = AppState.getInstance();
+    this.langSelect.value      = s.lang;
     this.wInput.value          = s.W;
     this.hInput.value          = s.H;
     this.heuristicSelect.value = s.heuristic;
@@ -89,6 +88,9 @@ class UI {
       });
     }
 
+    this.langSelect.addEventListener('change', () => {
+      if (this.onLangChange) this.onLangChange(this.langSelect.value);
+    });
     this.heuristicSelect.addEventListener('change', () => {
       if (this.onHeuristicChange) this.onHeuristicChange(this.heuristicSelect.value);
     });
