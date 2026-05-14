@@ -9,6 +9,8 @@
   --color-dark:    #b58863;
   --color-ink:     #3a2410;
   --color-border:  #3a2410;
+  --color-accent:        #c0392b;  /* tour line, stop button, focus ring on cells */
+  --color-accent-shadow: #8a2618;  /* darker variant for borders/contrast */
 }
 
 body {
@@ -136,8 +138,8 @@ h1 {
 }
 #stop-btn {
   color: #fff;
-  background: #c0392b;
-  border: 1px solid #8a2618;
+  background: var(--color-accent);
+  border: 1px solid var(--color-accent-shadow);
 }
 #sensitivity-btn {
   color: var(--color-ink);
@@ -154,13 +156,12 @@ h1 {
   font-size: 1rem;
   color: var(--color-ink);
 }
-#status2 { margin-top: 0.3rem; }
 
 /* a11y: visible focus ring on keyboard navigation. :focus-visible only
    activates for keyboard or otherwise-keyboard-equivalent focus, so mouse
    clicks don't leave a lingering outline. z-index lifts it above numbers. */
 .cell:focus-visible {
-  outline: 3px solid #c0392b;
+  outline: 3px solid var(--color-accent);
   outline-offset: -3px;
   z-index: 3;
 }
@@ -169,7 +170,8 @@ h1 {
 #controls2 select:focus-visible,
 #controls2 button:focus-visible,
 #controls3 select:focus-visible,
-#controls3 input[type="checkbox"]:focus-visible {
+#controls3 input[type="checkbox"]:focus-visible,
+#search-controls button:focus-visible {
   outline: 2px solid var(--color-ink);
   outline-offset: 2px;
 }
