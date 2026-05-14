@@ -17,16 +17,20 @@ function assertEq(actual, expected, msg) {
 }
 
 // Validates that a tour path is a sequence of valid moves over distinct
-// cells, covering exactly W*H squares within board bounds.
-function validateTour(path, W, H, moves) {
+// cells within bounds, covering exactly W*H - |blocked| cells, and never
+// stepping on a blocked cell.
+function validateTour(path, W, H, moves, blocked) {
   assert(path, 'no path');
-  assertEq(path.length, W * H, 'path length');
+  const blockedSet = blocked instanceof Set ? blocked : new Set();
+  const expectedLen = W * H - blockedSet.size;
+  assertEq(path.length, expectedLen, 'path length');
   const seen = new Set();
   for (const [c, r] of path) {
     const k = `${c},${r}`;
     assert(!seen.has(k), `duplicate cell ${k}`);
     seen.add(k);
     assert(c >= 0 && c < W && r >= 0 && r < H, `cell ${k} out of bounds`);
+    assert(!blockedSet.has(k), `blocked cell ${k} appears in tour`);
   }
   const moveSet = new Set(moves.map((m) => m.join(',')));
   for (let i = 1; i < path.length; i++) {
@@ -145,19 +149,21 @@ test('Solver: blocked cell makes the start invalid', () => {
   assertEq(r.path, null);
 });
 
-test('Solver: 8x8 knight (0,0) with one blocked cell still solves', () => {
+test('Solver: 8x8 Outside-In Point with 8 symmetric blocks finds 56-cell tour', () => {
+  // User-confirmed pattern (Phase 8 screenshot, May 14): four point-symmetric
+  // pairs of blocks form a 'mask'. Pure Warnsdorff on a single central
+  // block stalls badly, but Outside-In with point symmetry and this curated
+  // block set finds the 56-cell closed tour in a few thousand steps.
   const moves = Figures.generateBaseMoves('1,2');
-  const r = Solver.solve(8, 8, moves, 0, 0, {
-    heuristic: 'warnsdorff',
-    blocked: new Set(['4,4']),  // a middle cell
+  const blocked = new Set(['6,6','1,1','1,6','6,1','3,4','4,3','4,4','3,3']);
+  const r = Solver.solve(8, 8, moves, 7, 7, {
+    heuristic: 'outsideIn',
+    sym: 'point',
+    blocked,
   });
-  // 63 cells (one excluded), open tour
-  assert(r.path, 'expected solution avoiding blocked cell');
-  assertEq(r.path.length, 63);
-  // Validate that the blocked cell is NOT in the path
-  for (const [c, r2] of r.path) {
-    assert(!(c === 4 && r2 === 4), 'blocked cell appeared in tour');
-  }
+  validateTour(r.path, 8, 8, moves, blocked);
+  assert(r.closed, 'point-symmetric tour must be closed');
+  validateClosure(r.path, moves);
 });
 
 test('Solver: blocked count not divisible by orbit size returns null', () => {
