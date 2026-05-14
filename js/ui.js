@@ -28,6 +28,7 @@ class UI {
     this.langSelect      = document.getElementById('lang-select');
     this.timeBudgetInput = document.getElementById('time-budget-input');
     this.stopBtn         = document.getElementById('stop-btn');
+    this.sensitivityBtn  = document.getElementById('sensitivity-btn');
 
     this.onDimensionChange  = null;
     this.onLangChange       = null;
@@ -40,6 +41,7 @@ class UI {
     this.onWantClosedChange  = null;
     this.onSymTypeChange     = null;
     this.onStopClick         = null;
+    this.onSensitivityClick  = null;
   }
 
   // Push current i18n strings to all elements with a data-i18n attribute,
@@ -119,6 +121,9 @@ class UI {
     this.stopBtn.addEventListener('click', () => {
       if (this.onStopClick) this.onStopClick();
     });
+    this.sensitivityBtn.addEventListener('click', () => {
+      if (this.onSensitivityClick) this.onSensitivityClick();
+    });
     this.heuristicSelect.addEventListener('change', () => {
       if (this.onHeuristicChange) this.onHeuristicChange(this.heuristicSelect.value);
     });
@@ -183,5 +188,9 @@ class UI {
 
   showStopButton(visible) {
     this.stopBtn.hidden = !visible;
+  }
+
+  showSensitivityButton(visible) {
+    this.sensitivityBtn.hidden = !visible;
   }
 }

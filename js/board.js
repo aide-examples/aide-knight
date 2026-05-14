@@ -58,6 +58,7 @@ class Board {
     }
   }
 
+
   _build() {
     this._applyCellSize();
     this.boardEl.innerHTML = '';

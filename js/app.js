@@ -21,7 +21,8 @@
   const theUI       = new UI(theI18n, theState);
   const theBoard    = new Board(theUI.boardEl, theI18n, theState);
   const theRenderer = new Renderer(theBoard);
-  const theDriver   = new SearchDriver(theState, theI18n, theUI, theRenderer);
+  const theDriver       = new SearchDriver(theState, theI18n, theUI, theRenderer);
+  const theSensitivity  = new SensitivityScan(theState, theI18n, theUI, theRenderer);
 
   // --- Solver lifecycle ---
   let currentSolver    = null;
@@ -50,6 +51,8 @@
   function rebuildBoard() {
     theState.lastStart = null;
     dropSolver();
+    theSensitivity.cancel();
+    theUI.showSensitivityButton(false);
     theBoard.setDimensions(theState.W, theState.H);
     theUI.refreshSymmetryOptions();
     theUI.setStatus(theI18n.t('clickPrompt'), '');
@@ -57,6 +60,12 @@
   }
 
   function onCellClick(col, row) {
+    // Any user click cancels an ongoing sensitivity scan and clears
+    // the heatmap so the regular tour can be rendered fresh.
+    if (theSensitivity.isActive()) theSensitivity.cancel();
+    theRenderer.clearSensitivity();
+    theUI.showSensitivityButton(false);
+
     theState.lastStart = { col, row };
     theState.save();
     theUI.setStatus(`${col} / ${row}`, '');
@@ -64,15 +73,12 @@
 
     const key = solverKey(col, row);
     if (key !== currentSolverKey) {
-      currentSolver = new Solver(
-        theState.W, theState.H, theState.activeMoves, col, row,
-        {
-          heuristic: theState.heuristic,
-          closed:    theState.wantClosed,
-          sym:       theState.symType,
-          blocked:   theState.blockedCells,
-        },
-      );
+      currentSolver = new Solver(theState.W, theState.H, theState.activeMoves, col, row, {
+        heuristic: theState.heuristic,
+        closed:    theState.wantClosed,
+        sym:       theState.symType,
+        blocked:   theState.blockedCells,
+      });
       currentSolverKey = key;
     }
     theDriver.start(currentSolver);
@@ -175,7 +181,20 @@
     resolveLast();
   };
 
-  theUI.onStopClick = () => theDriver.stop();
+  theUI.onStopClick = () => {
+    if (theSensitivity.isActive()) {
+      theSensitivity.cancel();
+      theUI.setStatus(undefined, theI18n.t('stopped', 0));
+    } else {
+      theDriver.stop();
+    }
+  };
+
+  theUI.onSensitivityClick = () => {
+    dropSolver();           // sensitivity replaces the current tour view
+    theRenderer.clear();
+    theSensitivity.run();   // async, fire-and-forget; UI updated as it progresses
+  };
 
   // Right-click / long-press / Shift+Enter toggles cell-blocked status,
   // orbit-extended under an active symmetry.

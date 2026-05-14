@@ -42,6 +42,9 @@ class I18n {
         searching:    (n, sec) => `Searching… ${n} steps, ${sec.toFixed(1)} s`,
         aborted:      (sec, n) => `Aborted after ${sec.toFixed(1)} s, ${n} steps.`,
         stopped:      (n) => `Stopped after ${n} steps.`,
+        sensitivityBtn: 'Sensitivity',
+        sensitivityRunning: (i, n) => `Sensitivity: cell ${i}/${n}`,
+        sensitivityDone:    (n)    => `Sensitivity computed for ${n} cells.`,
       },
       de: {
         title:          "Knight's Tour",
@@ -75,6 +78,9 @@ class I18n {
         searching:    (n, sec) => `Suche läuft… ${n} Schritte, ${sec.toFixed(1)} s`,
         aborted:      (sec, n) => `Abgebrochen nach ${sec.toFixed(1)} s, ${n} Schritten.`,
         stopped:      (n) => `Gestoppt nach ${n} Schritten.`,
+        sensitivityBtn: 'Sensitivität',
+        sensitivityRunning: (i, n) => `Sensitivität: Feld ${i}/${n}`,
+        sensitivityDone:    (n)    => `Sensitivität berechnet für ${n} Felder.`,
       },
     };
   }
