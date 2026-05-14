@@ -11,7 +11,8 @@ Plattform- und Qualitäts-Verpflichtungen für aide-knight, parallel zum funktio
 - **Objektorientiert ab Tag 1** (`knight.md` Z. 18). Klassen mit klar abgegrenzten Verantwortungen; **kein globaler State außerhalb von Klassen**; kein "wir refactoren das später".
 - **Multi-File von Anfang an.** Mindestens die *grobe* Trennung Domain-Logik vs. State vs. View vs. Orchestrierung muss vor der ersten Codezeile stehen; die genaue Modul-Liste reift während der Implementierung. Anti-Pattern: alles in `app.js` mit Vermerk "Phase 11 splittet das später". **Jede Datei < 250 Zeilen** als harte Obergrenze — wenn überschritten, ist die Schnittführung schon falsch und gehört nachgezogen, nicht aufgeschoben.
 - **Reine Funktionen** für alle berechnenden Operationen (Solver, Move-Generierung, Symmetrie-Helfer). **DOM-Zugriff strikt lokalisiert** auf die View-/Wiring-Module.
-- **Single Source of Truth** für State: ein zentrales Modul kennt alle Einstellungen; UI- und Persistenz-Schichten kennen es einseitig. **Singletons via `getInstance()`** dort wo natürliche Einzigartigkeit besteht (i18n, App-State). Direkte Modul-Globals sind keine Architektur.
+- **Single Source of Truth** für State: ein zentrales Modul kennt alle Einstellungen; UI- und Persistenz-Schichten kennen es einseitig.
+- **Dependency Injection statt Singleton.** Dienste mit natürlicher Einzigartigkeit (i18n, App-State, …) werden am Entry-Point genau einmal instanziiert (`const theX = new X(...)`) und ihre Referenz explizit weitergereicht. Das `static getInstance()`-Pattern ist *nicht* zugelassen — es ist globaler State in Klassen-Hülle und versteckt Abhängigkeiten. Direkte Modul-Globals erst recht nicht.
 
 ## 2. Plattform-Constraints
 
@@ -72,6 +73,23 @@ Am Ende einer Phase, die diesen T-Contract respektiert, ist erfüllt:
 - ✓ Neue UI-Texte in STRINGS gepflegt (en + de).
 - ✓ Tests im `tests/test.html`-Skelett für jede neu hinzugekommene Pure Function.
 - ✓ Lighthouse-Accessibility-Score ≥ 90.
+
+---
+
+## 9. Aus dem globalen Coding-Vertrag mitgeerbt
+
+Diese Prinzipien aus `~/.claude/CLAUDE.md` (globale, projektübergreifende Vorgaben) sind für `aide-knight` bindend, auch wenn sie aus den projekt-lokalen Dokumenten nicht direkt sichtbar sind. Hier explizit aufgeführt, damit ein Leser, der nur dieses Projekt vor sich hat, sie nicht aus Indizien rekonstruieren muss:
+
+- **Modulkapselung.** Schreibzugriffe auf State *anderer* Module sind tabu — auch wenn technisch möglich. Lesen über Interface-Funktionen, nicht direktes Greifen in fremde Datenstrukturen. Setter, wenn nötig, kapseln *eine zusammenhängende* Zustandsänderung, nicht einzelne Felder.
+- **Architekturprinzip Lokalität.** Funktionen bekommen ihre Inputs als **Parameter**, nicht durch Griff in globalen State. Alle Dependencies sind in der Funktions- bzw. Konstruktor-Signatur sichtbar. *Konsequenz für aide-knight:* die DI-Pflicht aus Sektion 1 ist die direkte Anwendung dieses Prinzips auf langlebige Service-Objekte.
+- **Single Point of Access für Dateien.** Wenn eine Datei (Config, Locale, Spec) an mehreren Stellen gelesen wird: genau ein Modul lädt und parst sie; alle Konsumenten bekommen das geparste Ergebnis als Parameter. Kein `fs.readFile` oder Fetch-Duplikat in Verbraucher-Code.
+- **Keine willkürlichen `setTimeout` für Timing-Workarounds.** Statt `setTimeout(N)` als "warte mal N ms"-Hack: kausale Events (`requestAnimationFrame`, `load`, `transitionend`, Promise-Chains, `MutationObserver`). Ausnahmen *mit Begründung*: lang laufende Operationen (cooperative chunked yielding), Polling externer Prozesse ohne Push-API.
+- **Stille Auslassung verboten.** Code darf Fehler **niemals** stillschweigend ignorieren und mit unvollständigen Ergebnissen weitermachen. Lieber krachend abbrechen als falsche Ergebnisse produzieren. (`try { ... } catch {}` ist nur dann legitim, wenn es ein dokumentierter Fallback ist, z.B. Storage-fehlt-Toleranz in `AppState`.)
+- **Detektor vor Fix.** Wenn ein Bug entdeckt wird, den die Software nicht selbst gefunden hat: erst der Software beibringen, ihn zu erkennen (Test, Assertion, Detektor); am echten lebenden Bug validieren; *dann* fixen; Detektor erneut laufen lassen.
+- **Nur lebendiger Code bleibt.** Toter Code (auskommentierte Blöcke, ungenutzte Funktionen, "zur-Sicherheit"-Methoden, tote CSS-Klassen) wird gelöscht, nicht aufbewahrt. Git hat die Historie.
+- **MD-Dateien: Beschreibungssatz nach der `#`-Überschrift.** Jedes Markdown-Dokument im Repo öffnet mit `# Titel` + einem kurzen Satz zum Zweck. Gilt für `knight.md`, `knight_plan.md`, `T_CONTRACT.md`, `PROTOKOLL.md`.
+
+Diese Liste ist nicht erschöpfend — sie nennt die Punkte, die *spürbar* das Design dieses Projekts geprägt haben. Bei Konflikt: `CLAUDE.md` ist Quelle, der T-Contract die Projekt-Anwendung.
 
 ---
 
