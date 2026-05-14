@@ -101,3 +101,71 @@ A: Begriffsklärung erforderlich. DFS ist *der* Suchalgorithmus, Warnsdorff eine
 ### Commit
 
 `1d9f19c — Phase 2: knight's tour solver core (iterative DFS + Warnsdorff) with line and number render`
+
+---
+
+## Phase 3 — Variable Brettmaße, dynamisches Padding, Performance-Fundament
+
+### Mikrofragen & Antworten
+
+**Q: Wieviel Padding um das Brett (ersetzt den Bounds-Check im Solver)?**
+A: Dynamisch pro Figur — beim Solver-Start aus der aktiven Move-Liste berechnet: `pad = max(|dx|, |dy|)`. Für den Springer ergibt das 2; für die in `knight.md` Zeile 33 genannten zukünftigen Figuren (1,4)/(2,3)/(3,4) entsprechend 4, 3, 4. Cleanere Abstraktion als ein hartcodierter Wert; trägt automatisch durch alle späteren Phasen.
+
+**Q: Maximale Brettgröße?**
+A: Kein Cap. Der User darf eintragen, was er will — auch Werte, bei denen der Browser ins Schwitzen kommt. Phase 9 bringt mit dem 5-Sekunden-`confirm()` einen Abbruch-Mechanismus für lange Läufe.
+
+**Q: Wie soll das W/H-Eingabe-UI sich verhalten?**
+A: Zwei Number-Inputs oben über dem Brett, Auto-Apply auf `blur` oder Enter. Minimal-UI, kein extra Apply-Button.
+
+### Implementation
+
+- **`buildBoard()`** ersetzt den früheren Top-Level-Build-Loop. Wird beim Start und bei jeder Dimensionsänderung neu aufgerufen.
+  - Berechnet die Zellgröße `cellPx = clamp(2, min(viewport / W, viewport / H), 60)` — passt sich an die Viewport-Größe an, damit auch 200×100 ohne Scrollen sichtbar bleibt.
+  - Grid-Spaltenanzahl, Brettgröße, Zellgröße werden inline auf `boardEl.style` gesetzt — `repeat(var(--...), ...)` wäre eleganter, aber Browser-Support für `var()` als Repeat-Count ist uneinheitlich.
+- **Padding-Solver:** `visited` ist jetzt `Int32Array((W+2·pad) · (H+2·pad))`. Padding-Felder werden vor dem DFS auf `-1` gesetzt; die Kandidaten-Schleife schaut nur noch auf `visited === 0` und fängt damit gleichzeitig Out-of-Bounds und bereits besuchte Felder ab — eine Verzweigung pro Move-Test weniger.
+- **State-Refactor:** `BOARD_SIZE` ist weg. `W`, `H`, `cellByIdx`, `overlay` sind nun `let`-Variablen auf Modul-Ebene, von `buildBoard()` neu gesetzt. Multi-File-OO-Refactor kommt erst in Phase 11 — bewusst nicht jetzt.
+
+### Smoke-Tests (Solver-Kern, Node-Standalone)
+
+| Brett | Startfeld | Schritte | Zeit |
+|---|---|---|---|
+| 8×8 | (0,0) | 63 | 2 ms |
+| 8×8 | (3,3) | 63 | 10 ms |
+| 5×5 | (0,0) dunkel | 24 | 1 ms |
+| 5×5 | (2,2) dunkel | 24 | 0 ms |
+| 100×200 | (0,0) | 19 999 | 101 ms |
+| 100×200 | (50,100) | 19 999 | 53 ms |
+
+100×200 löst weit unter der "einstellige Sekunden"-Akzeptanzschwelle.
+
+### User-Test (Browser) — zwei lehrreiche Befunde
+
+**1) 200×100 — der erwartete Stresstest.**
+
+![Phase 3: 200×100 Brett, Warnsdorff löst sauber durch](_assets/phase-3-200x100.png)
+
+`Solution found after 19999 steps.` Das sind `W·H − 1` Schritte und **0 Backtracks** — Warnsdorff "läuft hier durch", ohne ein einziges Mal in eine Sackgasse zu geraten. Die roten Tour-Linien überlagern sich so dicht, dass kaum ein einzelner Sprung sichtbar bleibt — das Brett wirkt fast einfarbig. Für große, breite Bretter ist Warnsdorff praktisch perfekt.
+
+**2) 8×4 — der überraschende Pathologie-Fall.**
+
+![Phase 3: 8×4 Brett, 13.4 Millionen Schritte](_assets/phase-3-8x4.png)
+
+`Solution found after 13450907 steps.` Bei nur 32 Feldern. Das DFS hat 13.45 Millionen Versuche gebraucht — davon ≈ 6.7 Millionen Backtracks (jeder Backtrack zählt als 1, jeder Vorwärtszug als 1).
+
+**Warum?** Reine Warnsdorff-Heuristik ist auf schmalen Rechteck-Brettern bekannt-unzuverlässig. Bei Gleichstand des Onward-Count entscheidet die Move-Definitionsreihenfolge willkürlich, und auf 8×4 führt diese willkürliche Wahl die Suche in eine Sackgassen-Region — DFS rettet das Ergebnis am Ende, aber mühsam.
+
+Standard-Fix in der Literatur (Pohl 1967, später Roth, Squirrel/Cull): **Tie-Breaker-Regel** bei gleichem Onward-Count, z. B. das Feld bevorzugen, das näher an einer Brett-Ecke liegt. Das ist hier *nicht* eingebaut und gehört auch nicht in Phase 3. Phase 4 wird zusätzliche Heuristiken (Outside-In, Brute Force) und einen Mix-Button bringen — ggf. wäre danach der richtige Zeitpunkt für einen Warnsdorff-Tie-Breaker als bewusste Phase.
+
+**3) 5×5 — die Paritäts-Beobachtung des Users.**
+
+Auf 5×5 existiert eine offene Springertour nur, wenn das **Startfeld dunkel** ist. Reine Färbungs-Mathematik:
+
+- 5×5 = 25 Felder, davon 13 dunkel (Konvention `(row+col)%2===0`) und 12 hell.
+- Ein Springerzug wechselt immer die Feldfarbe → Tour der Länge 25 alterniert `Start-Farbe, andere, Start-Farbe, …` = 13 × Start-Farbe + 12 × andere.
+- Start = hell ⇒ 13 helle Felder nötig, aber es gibt nur 12 ⇒ unmöglich.
+
+Damit hat das `5×5 verweigert sinnvoll`-Akzeptanzkriterium aus dem Master-Plan ein konkretes, mathematisch sauberes Beispiel: Klick auf z. B. `(0,1)` (hell) liefert eine echte "No solution found"-Antwort. Schöne Mini-Anekdote für Phase 12.
+
+### Commit
+
+`fe74bf2 — Phase 3: variable W*H boards, padded solver, dynamic cell size`
