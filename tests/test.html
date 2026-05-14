@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>aide-knight tests</title>
+  <style>
+    body { font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; margin: 1rem; color: #3a2410; }
+    h1 { font-size: 1.2rem; margin: 0 0 0.5rem; }
+    #summary { margin: 0 0 1rem; font-weight: bold; }
+    #summary.pass { color: #2d7a2d; }
+    #summary.fail { color: #b03030; }
+    #out > div { padding: 2px 0; }
+    #out .pass { color: #2d7a2d; }
+    #out .fail { color: #b03030; }
+    #out .fail .where { color: #777; font-size: 0.85em; }
+  </style>
+</head>
+<body>
+  <h1>aide-knight tests — pure functions</h1>
+  <p id="summary">running…</p>
+  <div id="out"></div>
+
+  <!-- Only pure modules: no DOM dependencies. -->
+  <script src="../js/figures.js"></script>
+  <script src="../js/solver.js"></script>
+  <script src="tests.js"></script>
+</body>
+</html>
