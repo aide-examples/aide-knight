@@ -29,11 +29,13 @@ const mixBtn          = document.getElementById('mix-btn');
 const showNumbersBox  = document.getElementById('show-numbers');
 const showLinesBox    = document.getElementById('show-lines');
 const wantClosedBox   = document.getElementById('want-closed');
+const symmetrySelect  = document.getElementById('symmetry-select');
 const lblHeuristic    = document.getElementById('lbl-heuristic');
 const lblFigure       = document.getElementById('lbl-figure');
 const lblNumbers      = document.getElementById('lbl-numbers');
 const lblLines        = document.getElementById('lbl-lines');
 const lblClosed       = document.getElementById('lbl-closed');
+const lblSymmetry     = document.getElementById('lbl-symmetry');
 
 // --- i18n. To add a language: add an entry to STRINGS and switch LANG.
 const LANG = 'en';
@@ -49,6 +51,7 @@ const STRINGS = {
     numbersLabel:   'Numbers',
     linesLabel:     'Lines',
     closedLabel:    'Closed',
+    symmetryLabel:  'Symmetry',
   },
   de: {
     title:       "Knight's Tour",
@@ -61,6 +64,7 @@ const STRINGS = {
     numbersLabel:   'Nummern',
     linesLabel:     'Linien',
     closedLabel:    'Geschlossen',
+    symmetryLabel:  'Symmetrie',
   },
 };
 const T = STRINGS[LANG];
@@ -74,6 +78,7 @@ mixBtn.textContent       = T.mixBtn;
 lblNumbers.textContent   = T.numbersLabel;
 lblLines.textContent     = T.linesLabel;
 lblClosed.textContent    = T.closedLabel;
+lblSymmetry.textContent  = T.symmetryLabel;
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -94,6 +99,7 @@ let activeMoves = generateBaseMoves(figure);
 let showNumbers = true;
 let showLines   = true;
 let wantClosed  = false;
+let symType     = 'none';  // 'none' | 'axisV' | 'point' | 'rot90'
 let currentCellPx = 60;
 let lastStart = null;
 let cellByIdx;
@@ -134,6 +140,7 @@ function loadState() {
     if (typeof s.showNumbers === 'boolean') showNumbers = s.showNumbers;
     if (typeof s.showLines   === 'boolean') showLines   = s.showLines;
     if (typeof s.wantClosed  === 'boolean') wantClosed  = s.wantClosed;
+    if (['none','axisV','point','rot90'].includes(s.symType)) symType = s.symType;
   } catch { /* ignore — start from defaults */ }
 }
 
@@ -141,10 +148,71 @@ function saveState() {
   try {
     localStorage.setItem(STATE_KEY, JSON.stringify({
       W, H, heuristic, figure, moveOrder: activeMoves,
-      showNumbers, showLines, wantClosed,
+      showNumbers, showLines, wantClosed, symType,
     }));
   } catch { /* ignore — non-persistent mode */ }
 }
+
+// --- Symmetry helpers ---
+// Constraint on board geometry for each symmetry type. These rules are
+// *stricter* than just "no cell on the symmetry centre" — they also include
+// a colour-parity condition that ensures the shift-by-quarter tour structure
+// the solver searches for is *colour-compatible* with the move set:
+//
+//  - axisV:  W even (no axis cell) AND W*H ≡ 2 mod 4
+//            → so the quarter length q = W*H/2 is odd, which is what
+//              makes the colour of path[q-1] differ from the colour of
+//              mirror(path[0]) (mirror flips colour for W even), giving a
+//              valid knight bridge move. Excludes 4×*, 8×*, 12×*; allows
+//              6×3, 6×5, 10×3, 10×5, ...
+//  - point:  W even AND H even
+//            → both-even guarantees q even AND rotate180 preserves colour,
+//              so path[q-1] ≠ bridge in colour, knight move valid. Mixed
+//              parity boards (8×3 etc.) empirically yield no tours under
+//              the shift-by-half structure.
+//  - rot90:  W = H, W even AND N² ≡ 4 mod 8 (equivalently N ≡ 2 mod 4)
+//            → ensures q = N²/4 is odd; rotate90 flips colour on N even,
+//              so colour-bridge works. Excludes 4×4, 8×8, 12×12; allows
+//              6×6, 10×10, 14×14.
+//
+// Note: this is the algorithm's restriction, not a mathematical
+// impossibility. Some boards excluded here DO admit symmetric tours of
+// a more general structure not captured by shift-by-quarter — see
+// PROTOKOLL Phase 7 for the analysis.
+function isSymTypeValid(t, W, H) {
+  if (t === 'none')  return true;
+  if (t === 'axisV') return W % 2 === 0 && (W * H) % 4 === 2;
+  if (t === 'point') return W % 2 === 0 && H % 2 === 0;
+  if (t === 'rot90') return W === H && W % 2 === 0 && (W * W) % 8 === 4;
+  return false;
+}
+
+// Full orbit of a cell (including itself) under the chosen symmetry.
+function symOrbit(c, r, t, W, H) {
+  if (t === 'axisV') return [[c, r], [W - 1 - c, r]];
+  if (t === 'point') return [[c, r], [W - 1 - c, H - 1 - r]];
+  if (t === 'rot90') {
+    const N = W;
+    return [
+      [c, r],
+      [N - 1 - r, c],
+      [N - 1 - c, N - 1 - r],
+      [r, N - 1 - c],
+    ];
+  }
+  return [[c, r]];
+}
+
+// Immediate next-quarter image of (c, r). The tour's bridge cell (the one
+// after the last quarter step) is symTransform(path[0]).
+function symTransform(c, r, t, W, H) {
+  if (t === 'axisV') return [W - 1 - c, r];
+  if (t === 'point') return [W - 1 - c, H - 1 - r];
+  if (t === 'rot90') return [W - 1 - r, c];
+  return [c, r];
+}
+
+const SYM_ORBIT_SIZE = { none: 1, axisV: 2, point: 2, rot90: 4 };
 
 // --- Resize handling: viewport-driven, preserves rendered tour ---
 function applyCellSize() {
@@ -223,6 +291,7 @@ function onDimensionChange() {
   if (!readDimensions()) return;
   lastStart = null;
   buildBoard();
+  refreshSymmetryOptions();
   statusEl.textContent  = T.clickPrompt;
   status2El.textContent = '';
   saveState();
@@ -277,6 +346,39 @@ wantClosedBox.addEventListener('change', () => {
   resolveLast();
 });
 
+symmetrySelect.addEventListener('change', () => {
+  symType = symmetrySelect.value;
+  syncClosedUiWithSymmetry();
+  saveState();
+  resolveLast();
+});
+
+// Toggle individual symmetry-option availability based on current W/H.
+// Falls back to 'none' when the current selection becomes invalid.
+function refreshSymmetryOptions() {
+  for (const opt of symmetrySelect.options) {
+    opt.disabled = !isSymTypeValid(opt.value, W, H);
+  }
+  if (!isSymTypeValid(symType, W, H)) {
+    symType = 'none';
+    symmetrySelect.value = 'none';
+  }
+  syncClosedUiWithSymmetry();
+}
+
+// Symmetry implies closed: when a symmetry is active, force the Closed
+// checkbox to checked+disabled. The user's underlying wantClosed value
+// is preserved and restored when symmetry returns to 'none'.
+function syncClosedUiWithSymmetry() {
+  if (symType !== 'none') {
+    wantClosedBox.checked  = true;
+    wantClosedBox.disabled = true;
+  } else {
+    wantClosedBox.disabled = false;
+    wantClosedBox.checked  = wantClosed;
+  }
+}
+
 function shuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -307,7 +409,7 @@ function onCellClick(col, row) {
   status2El.textContent = '';
   clearTour();
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    const result = solve(col, row, wantClosed);
+    const result = solve(col, row, wantClosed, symType);
     if (result.path) {
       renderTour(result.path, result.closed);
       status2El.textContent = T.solution(result.steps);
@@ -319,15 +421,28 @@ function onCellClick(col, row) {
 
 // --- Solver: iterative DFS, heuristic-aware candidate ordering ---
 //
-// Closed-tour bias (Schwenk technique): mark the start cell's neighbours
+// Closed-tour bias (Schwenk technique): mark the bridge cell's neighbours
 // as "save for last" by adding a large penalty to their heuristic score.
 // Warnsdorff/Outside-In will only pick them when forced — so the very last
 // move tends to land on one of them, giving a closed tour. Brute Force
 // has no scoring → no bias → relies purely on backtracking against the
-// closure check (slow but still correct).
-function solve(startCol, startRow, closed) {
+// closure check.
+//
+// Symmetry constraint (axisV / point / rot90): the tour is forced to be
+// invariant under the chosen geometric transformation. The DFS searches
+// only the "quarter" path of length total / orbitSize; each placement
+// implicitly fills the orbit (2 cells for axis/point, 4 for rot90). The
+// bridge cell is then symTransform(start) rather than start itself —
+// because that is where quarter k=1 begins in the full tour.
+function solve(startCol, startRow, closed, sym) {
+  sym = sym || 'none';
   const moves = activeMoves;
   const heuristicNow = heuristic;
+  const wantsClosure = !!closed || sym !== 'none';
+
+  if (!isSymTypeValid(sym, W, H)) {
+    return { path: null, steps: 0 };
+  }
 
   let pad = 0;
   for (const [dc, dr] of moves) {
@@ -336,6 +451,8 @@ function solve(startCol, startRow, closed) {
   }
   const stride = W + 2 * pad;
   const total  = W * H;
+  const orbitSize = SYM_ORBIT_SIZE[sym];
+  const quarterLen = total / orbitSize;
   const visited = new Int32Array(stride * (H + 2 * pad));
   for (let r = 0; r < H + 2 * pad; r++) {
     for (let c = 0; c < W + 2 * pad; c++) {
@@ -346,18 +463,40 @@ function solve(startCol, startRow, closed) {
   }
   const at = (col, row) => (row + pad) * stride + (col + pad);
 
-  // Start-neighbours mask: cells from which the move-set can reach the start.
-  // Used both for the heuristic bias AND for the closure check at the end.
-  const startNbrs = new Uint8Array(stride * (H + 2 * pad));
-  for (const [dc, dr] of moves) {
-    const idx = at(startCol + dc, startRow + dr);
-    if (visited[idx] === -1) continue;  // would be off-board
-    startNbrs[idx] = 1;
+  // Bridge target: the cell whose knight-neighbours the tour must end on.
+  // For sym==='none' + closed=true: bridge is the start itself.
+  // For sym!=='none':              bridge is the next-quarter image of start.
+  const bridge = wantsClosure ? symTransform(startCol, startRow, sym, W, H) : null;
+  // startNbrs is the precise closure-target set for the bridge check at the
+  // end of the quarter. closureBias is a wider set used only for the
+  // heuristic penalty: in symmetric mode, placing ANY cell whose orbit
+  // contains a startNbr cell consumes that closure target via the orbit, so
+  // we have to penalise the candidate too — otherwise the bias is leaky.
+  const startNbrs   = new Uint8Array(stride * (H + 2 * pad));
+  const closureBias = new Uint8Array(stride * (H + 2 * pad));
+  if (wantsClosure) {
+    for (const [dc, dr] of moves) {
+      const idx = at(bridge[0] + dc, bridge[1] + dr);
+      if (visited[idx] === -1) continue;
+      startNbrs[idx]   = 1;
+      closureBias[idx] = 1;
+    }
+    if (sym !== 'none') {
+      for (let i = 0; i < startNbrs.length; i++) {
+        if (!startNbrs[i]) continue;
+        const r = Math.floor(i / stride) - pad;
+        const c = (i % stride) - pad;
+        const orb = symOrbit(c, r, sym, W, H);
+        for (let j = 0; j < orb.length; j++) {
+          const oidx = at(orb[j][0], orb[j][1]);
+          if (visited[oidx] === -1) continue;
+          closureBias[oidx] = 1;
+        }
+      }
+    }
   }
-  const CLOSURE_PENALTY = 1000;  // larger than any onward count (max ~8)
+  const CLOSURE_PENALTY = 1000;
 
-  // Outside-In: bigger Euclidean distance from board centre wins → smaller
-  // "score" wins after the sign flip, so we can use a single ascending sort.
   const cx = (W - 1) / 2, cy = (H - 1) / 2;
   function pickCandidates(col, row) {
     const list = [];
@@ -365,6 +504,18 @@ function solve(startCol, startRow, closed) {
       const dc = moves[i][0], dr = moves[i][1];
       const nc = col + dc, nr = row + dr;
       if (visited[at(nc, nr)] !== 0) continue;
+      // For symmetric mode, also check the candidate's orbit — placing
+      // (nc, nr) implies placing its orbit mates simultaneously, so if any
+      // of them is already taken (e.g. by an earlier orbit), the candidate
+      // is dead.
+      if (sym !== 'none') {
+        const orb = symOrbit(nc, nr, sym, W, H);
+        let collision = false;
+        for (let j = 1; j < orb.length; j++) {
+          if (visited[at(orb[j][0], orb[j][1])] !== 0) { collision = true; break; }
+        }
+        if (collision) continue;
+      }
       list.push([nc, nr]);
     }
     if (heuristicNow === 'bruteForce' || list.length <= 1) return list;
@@ -378,46 +529,55 @@ function solve(startCol, startRow, closed) {
           if (visited[at(c + moves[i][0], r + moves[i][1])] === 0) cnt++;
         }
         scores[k] = cnt;
-        if (closed && startNbrs[at(c, r)]) scores[k] += CLOSURE_PENALTY;
+        if (wantsClosure && closureBias[at(c, r)]) scores[k] += CLOSURE_PENALTY;
       }
     } else { // outsideIn
       for (let k = 0; k < list.length; k++) {
         const c = list[k][0], r = list[k][1];
         const dx = c - cx, dy = r - cy;
         scores[k] = -(dx*dx + dy*dy);
-        if (closed && startNbrs[at(c, r)]) scores[k] += CLOSURE_PENALTY;
+        if (wantsClosure && closureBias[at(c, r)]) scores[k] += CLOSURE_PENALTY;
       }
     }
-    // Sort indices to keep stability vs the move definition order on ties.
     const idx = list.map((_, i) => i);
     idx.sort((a, b) => scores[a] - scores[b]);
     return idx.map((i) => list[i]);
   }
 
-  const path = [];
+  // Place start + orbit
+  const startOrbit = symOrbit(startCol, startRow, sym, W, H);
+  for (let i = 0; i < startOrbit.length; i++) {
+    if (visited[at(startOrbit[i][0], startOrbit[i][1])] !== 0) {
+      return { path: null, steps: 0 };  // start orbit self-collides (shouldn't with valid sym)
+    }
+  }
+  for (let i = 0; i < startOrbit.length; i++) {
+    visited[at(startOrbit[i][0], startOrbit[i][1])] = 1;
+  }
+
+  const path = [[startCol, startRow]];
   let steps = 0;
-
-  visited[at(startCol, startRow)] = 1;
-  path.push([startCol, startRow]);
-
   const stack = [{ candidates: pickCandidates(startCol, startRow), nextIdx: 0 }];
 
   while (stack.length > 0) {
-    if (path.length === total) {
-      if (!closed) return { path, steps, closed: false };
-      // Closed mode: tour must end at a start-neighbour. The bias makes this
-      // overwhelmingly likely; if it failed, fall through and backtrack —
-      // the just-pushed top frame's candidates list is empty (all cells
-      // visited), so the next iteration triggers backtrack via the normal
-      // exhausted-candidates path.
-      const last = path[total - 1];
-      if (startNbrs[at(last[0], last[1])]) return { path, steps, closed: true };
+    if (path.length === quarterLen) {
+      if (!wantsClosure) {
+        return { path: expandTour(path, sym, W, H), steps, closed: false };
+      }
+      const last = path[quarterLen - 1];
+      if (startNbrs[at(last[0], last[1])]) {
+        return { path: expandTour(path, sym, W, H), steps, closed: true };
+      }
+      // Fall through to backtrack
     }
 
     const top = stack[stack.length - 1];
     if (top.nextIdx >= top.candidates.length) {
       const popped = path.pop();
-      visited[at(popped[0], popped[1])] = 0;
+      const orb = symOrbit(popped[0], popped[1], sym, W, H);
+      for (let i = 0; i < orb.length; i++) {
+        visited[at(orb[i][0], orb[i][1])] = 0;
+      }
       stack.pop();
       steps++;
       continue;
@@ -425,12 +585,35 @@ function solve(startCol, startRow, closed) {
 
     const [nc, nr] = top.candidates[top.nextIdx++];
     steps++;
-    visited[at(nc, nr)] = path.length + 1;
+    const orb = symOrbit(nc, nr, sym, W, H);
+    for (let i = 0; i < orb.length; i++) {
+      visited[at(orb[i][0], orb[i][1])] = 1;
+    }
     path.push([nc, nr]);
     stack.push({ candidates: pickCandidates(nc, nr), nextIdx: 0 });
   }
 
   return { path: null, steps };
+}
+
+// Expand a quarter path into the full tour by appending the orbit images.
+// Order: quarter, then transform(quarter), then transform²(quarter), ...
+// The full tour is closed: full[total-1] connects back to full[0] via the
+// move-set's symmetry (knight moves are invariant under 90°/180°/mirror).
+function expandTour(quarter, sym, W, H) {
+  if (sym === 'none') return quarter;
+  const full = quarter.slice();
+  if (sym === 'axisV') {
+    for (const [c, r] of quarter) full.push([W - 1 - c, r]);
+  } else if (sym === 'point') {
+    for (const [c, r] of quarter) full.push([W - 1 - c, H - 1 - r]);
+  } else if (sym === 'rot90') {
+    const N = W;
+    for (const [c, r] of quarter) full.push([N - 1 - r, c]);
+    for (const [c, r] of quarter) full.push([N - 1 - c, N - 1 - r]);
+    for (const [c, r] of quarter) full.push([r, N - 1 - c]);
+  }
+  return full;
 }
 
 // --- Render ---
@@ -496,6 +679,8 @@ figureSelect.value    = figure;
 showNumbersBox.checked = showNumbers;
 showLinesBox.checked   = showLines;
 wantClosedBox.checked  = wantClosed;
+symmetrySelect.value   = symType;
 updateMixTooltip();
 buildBoard();
+refreshSymmetryOptions();
 statusEl.textContent  = T.clickPrompt;
