@@ -187,3 +187,71 @@ Sehr relevanter Punkt für die Phase-12-Lehrunterlage unter "Was Profis anders m
 ### Nachzügler-Commit
 
 `94e018d — Phase 3 follow-up: window resize listener, preserves rendered tour`
+
+---
+
+## Phase 4 — Heuristik-Wahl, Figuren, Mix-Button, Persistenz
+
+### Mikrofragen & Antworten (vorab)
+
+**Q: Wo sollen die drei neuen Controls (Heuristik-Dropdown, Figur-Dropdown, Mix-Button) sitzen?**
+A: Eigene Reihe unter W/H. Klar gegliedert, keine Platzprobleme auf schmalen Screens (mit `flex-wrap`).
+
+**Q: Was passiert beim Klick auf den Mix-Button?**
+A: Reihenfolge neu permutiert + automatisch erneuter Solve vom letzten Startfeld. User sieht den Effekt sofort. Falls noch kein Startfeld geklickt wurde: nur würfeln, kein Solve.
+
+**Q: Was soll über Reloads hinweg in localStorage überleben?**
+A: Vollständiger State — W, H, Heuristik, Figur und Mix-Order. Beim Reload Settings wiederhergestellt; Tour selbst wird nicht persistiert (nur Konfiguration).
+
+### Mikrofragen & Antworten (während der Implementierung)
+
+**Q (vom User mid-phase): Beim Klick auf ein Feld erscheint die Koordinate nicht sofort in der Fußleiste — als visuelle Rückmeldung wäre das aber nötig, bevor die Suche beginnt.**
+A: Bug bestätigt. Ursache: JS ist single-threaded — der Click-Handler setzt `statusEl.textContent = "X / Y"`, ruft dann aber synchron `solve()` auf, das den Main-Thread blockiert; der Browser kommt vor dem Block nicht zum Repaint. Bei 8×8 Knight (1 ms) sieht man's nicht, bei längeren Suchen schon. **Fix:** Double-`requestAnimationFrame` zwischen Statusupdate und `solve()`. Eine einzelne rAF läuft *vor* dem nächsten Paint; zwei rAFs hintereinander garantieren, dass der Browser dazwischen einen Paint einlegt. `setTimeout(fn,0)` würde es auch tun, ist aber per globaler CLAUDE.md-Regel verpönt — `requestAnimationFrame` ist der saubere Weg.
+
+**Q (vom User mid-phase): In der Spec gibt es das Feature, dass Re-Klick auf dasselbe Startfeld die Suche von der aktuellen Lösung aus fortsetzt. Gehört das zu dieser Phase?**
+A: Nein — gehört zu **Phase 9** zusammen mit dem 5-Sekunden-Confirm-Dialog. Begründung: die "Continue from current solution"-Logik braucht eine speicherbare Search-State-Struktur (Stack + visited), die in Phase 9 sowieso aufgebaut werden muss, damit der Cancel-Dialog dazwischenfunken kann.
+
+### Implementation
+
+- **Heuristiken** als String-Konstanten (`'warnsdorff'`, `'outsideIn'`, `'bruteForce'`), zentral in `pickCandidates()` ausgewertet:
+  - Warnsdorff: Onward-Count pro Kandidat, aufsteigend.
+  - Outside-In: euklidischer Quadrat-Abstand zum Brett-Zentrum, *negiert* (damit "größer = weiter draußen = bevorzugt" mit derselben aufsteigenden Sort-Funktion klappt).
+  - Brute Force: keine Sortierung, Reihenfolge = aktuelle Move-Definitionsreihenfolge.
+  - Für alle drei: stabile Sortierung (ES2019+) hält bei Gleichstand die aktuelle Move-Order — der Mix-Button hat damit auch für Warnsdorff/Outside-In als Tie-Breaker einen sichtbaren Effekt.
+- **Figuren** als `"a,b"`-Keys (`'1,2'` Knight, `'1,4'` Camel, `'2,3'` Zebra, `'3,4'` Giraffe). `generateBaseMoves(figureKey)` erzeugt acht Move-Vektoren als sign+swap-Permutationen von (a, b).
+- **Mix-Button:** Fisher-Yates auf der aktiven Move-Liste, Tooltip via `mixBtn.title` zeigt die aktuelle Reihenfolge als `(dx,dy)`-Paare. Auto-Resolve vom letzten Startfeld via `resolveLast()`.
+- **State + localStorage:** Modul-globale `let`-Variablen für `W`, `H`, `heuristic`, `figure`, `activeMoves`. `saveState()` schreibt nach jedem Setting-Change. `loadState()` validiert beim Reload (`isValidMoveOrder` prüft, dass die gespeicherte Order eine Permutation der Basis-Moves ist) und fällt sonst auf Defaults zurück. Storage-Key: `aide-knight-state-v1` — das `v1` lässt Schema-Migrationen später zu.
+- **i18n** erweitert um `heuristicLabel`, `figureLabel`, `mixBtn` (für `en` und `de`).
+
+### Smoke-Tests (Node-Standalone, Step-Budget 50 M)
+
+| Config | Schritte | Zeit | Bemerkung |
+|---|---|---|---|
+| 8×8 (1,2) Warnsdorff | 63 | 1 ms | Sauber durch (Regression-Check) |
+| 8×8 (1,2) Outside-In | 113 | 1 ms | ~50 Backtracks, andere Geometrie |
+| 8×8 (1,2) Brute Force | 16 501 401 | 1 028 ms | Bekannte Schwere |
+| 8×8 (1,4) Camel Warnsdorff | >50 M | abgebrochen | Vermutlich keine Hamilton-Tour |
+| 8×8 (1,4) Camel Outside-In | >50 M | abgebrochen | Dito |
+| 8×8 (2,3) Zebra Warnsdorff | >50 M | abgebrochen | Dito |
+| 8×8 (3,4) Giraffe Warnsdorff | 3 420 213 | 303 ms | Sauber "no solution" |
+| 10×10 (1,2) Warnsdorff | 99 | 0 ms | Sauber |
+| 10×10 (1,2) Outside-In | 13 973 | 1 ms | Outside-In braucht hier deutlich mehr Backtracking |
+
+Bemerkenswert: Outside-In auf 10×10 produziert 13 973 Schritte vs. 99 für Warnsdorff — dramatischer Heuristik-Unterschied. Und die größeren Figuren (Camel, Zebra) haben auf 8×8 vermutlich gar keine Hamilton-Tour; die Giraffe beweist's binnen 300 ms.
+
+### User-Test
+
+![Phase 4: 8×6 Zebra mit Warnsdorff, sauber widerlegt nach 371 M Schritten](_assets/phase-4-heuristic.png)
+
+User hat den schwersten denkbaren Fall ausgewählt: **8×6 Brett, Figur (2,3) Zebra, Heuristik Warnsdorff, Startfeld (0,5)**. Ergebnis nach ≈70 Sekunden Browser-Pause: `No solution found after 371280573 steps.` — der Solver hat den kompletten Suchbaum erschöpft und damit *bewiesen*, dass auf 8×6 keine offene Zebra-Tour von (0,5) existiert. Genau das gewünschte Verhalten: keine willkürliche Abbruchgrenze, sondern echtes Erschöpfen des Suchraums. Phase 9 wird mit dem 5-Sekunden-Confirm-Dialog die Geduldsanforderung an den User entschärfen.
+
+Bestätigt funktionierende Features:
+- Heuristik-Umschaltung mit Auto-Resolve vom letzten Startfeld
+- Figur-Wechsel mit Brett-Reset und passendem Padding (für (2,3) wird `pad=3` gerechnet)
+- Mix-Button mit Tooltip-Anzeige der aktuellen Reihenfolge
+- Status-Feedback-Fix (Koordinate erscheint sofort, bevor der Solver blockiert)
+- localStorage-Persistenz über Reload hinweg
+
+### Commit
+
+`bec8718 — Phase 4: heuristic + figure + mix-button + full-state localStorage`
