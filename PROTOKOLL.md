@@ -169,3 +169,21 @@ Damit hat das `5×5 verweigert sinnvoll`-Akzeptanzkriterium aus dem Master-Plan 
 ### Commit
 
 `fe74bf2 — Phase 3: variable W*H boards, padded solver, dynamic cell size`
+
+### Nachzügler: Resize-Listener (didaktisch relevant!)
+
+User-Hinweis direkt nach Phase-3-Akzeptanz:
+
+> "Das Board muss auf einen window resize event reagieren und sich anpassen, auch wenn keine zusätzliche User-Interaktion erfolgt. Wenn wir auf einem Android-Device sind und das Gerät von Portrait nach Landscape drehen, muss es auch klappen … ist da meine Erwartung zu hoch?"
+
+**Technische Korrektur:** `applyCellSize()` ist als Pure-CSS-Resize-Pfad aus `buildBoard()` herausgezogen — verändert nur `--board-cell` und die inline Grid-Geometrie auf `boardEl.style`, keine DOM-Rekonstruktion. Resize-Listener auf `window` mit Trailing-Edge-Debounce (80 ms). Die gerenderte Tour bleibt erhalten: SVG-Overlay skaliert über seine `viewBox`, Schriftgrößen folgen der CSS-Variable.
+
+**Meta-Erkenntnis (wichtiger als die Code-Korrektur):** Die Erwartung des Users war nicht zu hoch. Resize-Reaktion gehört bei einer Webapp, deren ganzer Sinn aus der visuellen Darstellung kommt, zum **Baseline-Verhalten** — wie Hover-States, sensible Defaults, Keyboard-Bedienbarkeit. YAGNI-Disziplin gegen Featuritis darf das nicht aushebeln; "der Plan erwähnt es nicht" ist kein Argument, sondern eine Lücke im Plan.
+
+Diese Erkenntnis ist als neue Sektion **"Baseline-Verhalten ist kein Feature"** in `~/.claude/CLAUDE.md` verankert, damit sie auch zukünftige Projekte prägt. Konkretes Anti-Pattern, das ich hier zeige: Plan-Wortlaut zu eng auslegen ("dynamische Canvas-Größe" auf "passt sich an W/H an" reduzieren, statt auch "passt sich an Viewport-Änderungen an" mitzudenken).
+
+Sehr relevanter Punkt für die Phase-12-Lehrunterlage unter "Was Profis anders machen" — gerade weil hier der **User** den Profistandard setzt und die AI das nachholt.
+
+### Nachzügler-Commit
+
+`94e018d — Phase 3 follow-up: window resize listener, preserves rendered tour`
