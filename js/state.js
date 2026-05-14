@@ -32,6 +32,20 @@ class AppState {
 
   static STATE_KEY = 'aide-knight-state-v1';
 
+  // Reference values used by _saveToHash to decide what's worth putting
+  // in the URL. Only deviations from these defaults end up in the fragment,
+  // so an untouched session keeps the URL clean.
+  static DEFAULTS = {
+    lang: 'en',
+    W: 8, H: 8,
+    heuristic: 'warnsdorff',
+    figure: '1,2',
+    showNumbers: true,
+    showLines: true,
+    wantClosed: false,
+    symType: 'none',
+  };
+
   static getInstance() {
     if (!AppState._instance) AppState._instance = new AppState();
     return AppState._instance;
@@ -141,24 +155,39 @@ class AppState {
   }
 
   _saveToHash() {
+    // Only write deviations from defaults — at the default state the URL
+    // stays clean. mix only if the move order is shuffled vs the figure's
+    // base; start only if the user has actually clicked a cell.
+    const d = AppState.DEFAULTS;
     const params = new URLSearchParams();
-    params.set('lang', this.lang);
-    params.set('W', this.W);
-    params.set('H', this.H);
-    params.set('fig', this.figure);
-    params.set('heur', this.heuristic);
-    params.set('sym', this.symType);
-    params.set('closed',  this.wantClosed  ? '1' : '0');
-    params.set('numbers', this.showNumbers ? '1' : '0');
-    params.set('lines',   this.showLines   ? '1' : '0');
-    params.set('mix', this.activeMoves.map((m) => m.join(',')).join(';'));
+    if (this.lang        !== d.lang)        params.set('lang', this.lang);
+    if (this.W           !== d.W)           params.set('W', this.W);
+    if (this.H           !== d.H)           params.set('H', this.H);
+    if (this.figure      !== d.figure)      params.set('fig', this.figure);
+    if (this.heuristic   !== d.heuristic)   params.set('heur', this.heuristic);
+    if (this.symType     !== d.symType)     params.set('sym', this.symType);
+    if (this.wantClosed  !== d.wantClosed)  params.set('closed',  this.wantClosed  ? '1' : '0');
+    if (this.showNumbers !== d.showNumbers) params.set('numbers', this.showNumbers ? '1' : '0');
+    if (this.showLines   !== d.showLines)   params.set('lines',   this.showLines   ? '1' : '0');
+    const base = Figures.generateBaseMoves(this.figure);
+    if (JSON.stringify(this.activeMoves) !== JSON.stringify(base)) {
+      params.set('mix', this.activeMoves.map((m) => m.join(',')).join(';'));
+    }
     if (this.lastStart) {
       params.set('start', `${this.lastStart.col},${this.lastStart.row}`);
     }
-    // Decode URL-encoded commas/semicolons — they're safe inside a fragment.
-    const newHash = '#' + params.toString().replace(/%2C/gi, ',').replace(/%3B/gi, ';');
-    if (window.location.hash !== newHash) {
-      history.replaceState(null, '', newHash);
+
+    const serialized = params.toString()
+      .replace(/%2C/gi, ',')
+      .replace(/%3B/gi, ';');
+    const desiredHash = serialized ? '#' + serialized : '';
+    const currentHash = window.location.hash;
+    if (currentHash === desiredHash) return;
+    if (desiredHash) {
+      history.replaceState(null, '', desiredHash);
+    } else {
+      // Strip the fragment entirely so the URL shows just the page.
+      history.replaceState(null, '', window.location.pathname + window.location.search);
     }
   }
 
