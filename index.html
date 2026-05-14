@@ -12,6 +12,26 @@
     <label>W <input id="w-input" type="number" min="1" value="8"></label>
     <label>H <input id="h-input" type="number" min="1" value="8"></label>
   </div>
+  <div id="controls2">
+    <label>
+      <span id="lbl-heuristic"></span>
+      <select id="heuristic-select">
+        <option value="warnsdorff">Warnsdorff</option>
+        <option value="outsideIn">Outside-In</option>
+        <option value="bruteForce">Brute Force</option>
+      </select>
+    </label>
+    <label>
+      <span id="lbl-figure"></span>
+      <select id="figure-select">
+        <option value="1,2">(1, 2)</option>
+        <option value="1,4">(1, 4)</option>
+        <option value="2,3">(2, 3)</option>
+        <option value="3,4">(3, 4)</option>
+      </select>
+    </label>
+    <button id="mix-btn" type="button"></button>
+  </div>
   <div id="board"></div>
   <div id="status"></div>
   <div id="status2"></div>

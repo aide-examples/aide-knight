@@ -22,26 +22,43 @@ h1 {
   margin: 0 0 1rem;
 }
 
-#controls {
-  margin-bottom: 1rem;
+#controls, #controls2 {
+  margin-bottom: 0.6rem;
   display: flex;
   gap: 1rem;
+  flex-wrap: wrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+#controls2 {
+  margin-bottom: 1rem;
+}
 
-#controls label {
+#controls label, #controls2 label {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   font-size: 0.95rem;
 }
 
-#controls input {
-  width: 5rem;
+#controls input, #controls2 select {
   padding: 0.2rem 0.4rem;
   font: inherit;
   color: var(--color-ink);
 }
+#controls input {
+  width: 5rem;
+}
+
+#controls2 button {
+  padding: 0.25rem 0.7rem;
+  font: inherit;
+  color: var(--color-ink);
+  background: var(--color-light);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+#controls2 button:hover { filter: brightness(1.05); }
 
 #board {
   position: relative;
