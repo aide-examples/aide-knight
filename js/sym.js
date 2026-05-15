@@ -10,8 +10,11 @@
 // derivation.
 
 class Sym {
+  // Orbit size per symmetry type: how many cells one quarter-tour cell maps to.
   static SIZES = { none: 1, axisV: 2, point: 2, rot90: 4 };
 
+  // Is symmetry type t reachable on a W×H board with this solver's shift-by-
+  // quarter construction? See module header for the parity-derived rules.
   static isValid(t, W, H) {
     if (t === 'none')  return true;
     if (t === 'axisV') return W % 2 === 0 && (W * H) % 4 === 2;

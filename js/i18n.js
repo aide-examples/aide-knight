@@ -45,6 +45,8 @@ class I18n {
         sensitivityBtn: 'Sensitivity',
         sensitivityRunning: (i, n) => `Sensitivity: cell ${i}/${n}`,
         sensitivityDone:    (n)    => `Sensitivity computed for ${n} cells.`,
+        testsLink:    'Tests',
+        guideLink:    'Teaching guide',
       },
       de: {
         title:          "Knight's Tour",
@@ -81,10 +83,14 @@ class I18n {
         sensitivityBtn: 'Sensitivität',
         sensitivityRunning: (i, n) => `Sensitivität: Feld ${i}/${n}`,
         sensitivityDone:    (n)    => `Sensitivität berechnet für ${n} Felder.`,
+        testsLink:    'Tests',
+        guideLink:    'Lehrunterlage',
       },
     };
   }
 
+  // Switch the active language. No-op if the code is unknown or already active.
+  // Updates <html lang="…"> and <title>, then fans the change out to subscribers.
   setLanguage(code) {
     if (!this.strings[code] || this.lang === code) return;
     this.lang = code;
@@ -93,18 +99,28 @@ class I18n {
     this._notify();
   }
 
+  // Current language code (e.g. 'en', 'de').
   getLanguage() { return this.lang; }
 
+  // List of language codes for which we have a STRINGS entry — used to build
+  // the language switcher dropdown.
   availableLanguages() { return Object.keys(this.strings); }
 
+  // Look up a key in the current language. If the entry is a function
+  // (interpolating template), call it with the provided args. Falls back to
+  // the literal key if nothing is registered — visible in the UI as a hint
+  // that a translation is missing.
   t(key, ...args) {
     const value = this.strings[this.lang] && this.strings[this.lang][key];
     if (typeof value === 'function') return value(...args);
     return value !== undefined ? value : key;
   }
 
+  // Register a listener invoked whenever setLanguage() changes the language.
+  // Listeners receive no arguments and should re-pull strings via .t().
   subscribe(fn) { this._listeners.push(fn); }
 
+  // Fire all language-change listeners. Internal; called from setLanguage.
   _notify() {
     for (const fn of this._listeners) fn();
   }

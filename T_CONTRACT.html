@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T_CONTRACT</title>
+<style>
+:root {
+  --color-light:  #f0d9b5;
+  --color-dark:   #b58863;
+  --color-ink:    #3a2410;
+  --color-accent: #c0392b;
+}
+body {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: var(--color-ink);
+  background: #fbf6ee;
+  max-width: 48rem;
+  margin: 2rem auto;
+  padding: 0 1.5rem 4rem;
+  line-height: 1.55;
+}
+h1, h2, h3, h4 { font-family: system-ui, -apple-system, sans-serif; }
+h1 { font-size: 1.7rem; border-bottom: 2px solid var(--color-dark); padding-bottom: 0.3rem; }
+h2 { font-size: 1.3rem; margin-top: 2rem; border-bottom: 1px solid var(--color-dark); padding-bottom: 0.2rem; }
+h3 { font-size: 1.1rem; margin-top: 1.6rem; }
+h4 { font-size: 1rem; margin-top: 1.2rem; }
+a { color: var(--color-accent); }
+a:hover { text-decoration: none; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--color-light);
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+  font-size: 0.92em;
+}
+pre {
+  background: var(--color-light);
+  padding: 0.8rem 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  border-left: 3px solid var(--color-dark);
+}
+pre code { background: transparent; padding: 0; }
+blockquote {
+  border-left: 3px solid var(--color-accent);
+  margin: 1rem 0;
+  padding: 0.2rem 1rem;
+  color: #5a3a1e;
+  background: #fff9ee;
+}
+table { border-collapse: collapse; margin: 1rem 0; }
+th, td { border: 1px solid var(--color-dark); padding: 0.3rem 0.7rem; text-align: left; }
+th { background: var(--color-light); }
+img { max-width: 100%; height: auto; border: 1px solid var(--color-dark); }
+hr { border: none; border-top: 1px dashed var(--color-dark); margin: 2rem 0; }
+.nav-back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+}
+</style>
+</head>
+<body>
+<a class="nav-back" href="index.html">← back to app</a>
+<h1 id="technical-contract-t-contract">Technical Contract (T-Contract)</h1>
+<p>Plattform- und Qualitäts-Verpflichtungen für aide-knight, parallel zum funktionalen Vertrag (<code>knight.md</code>) und zum Vorgehensplan (<code>knight_plan.md</code>).</p>
+<blockquote>
+<p><strong>Hinweis zur Entstehung:</strong> Dieser Vertrag wurde <strong>zu spät</strong> geschrieben — erst nach Phase 7, auf User-Hinweis hin. Sieben Phasen lang wurde die Software nur gegen <code>knight.md</code> (F-Contract) gebaut; Plattform-Qualitäten wuchsen ad hoc oder fehlten ganz. Phase 7.5 ist das Retrofit. Dass dieser Vertrag fehlte, ist als didaktisches Lehrstück offen festgehalten — siehe <code>PROTOKOLL.md</code> Phase 7.5 und den Eintrag <em>&quot;F-Contract und T-Contract gehören gleichzeitig an den Anfang&quot;</em> in <code>~/.claude/CLAUDE.md</code>.</p>
+</blockquote>
+<hr>
+<h2 id="1-architektur">1. Architektur</h2>
+<ul>
+<li><strong>Objektorientiert ab Tag 1</strong> (<code>knight.md</code> Z. 18). Klassen mit klar abgegrenzten Verantwortungen; <strong>kein globaler State außerhalb von Klassen</strong>; kein &quot;wir refactoren das später&quot;.</li>
+<li><strong>Multi-File von Anfang an.</strong> Mindestens die <em>grobe</em> Trennung Domain-Logik vs. State vs. View vs. Orchestrierung muss vor der ersten Codezeile stehen; die genaue Modul-Liste reift während der Implementierung. Anti-Pattern: alles in <code>app.js</code> mit Vermerk &quot;Phase 11 splittet das später&quot;. <strong>Jede Datei &lt; 250 Zeilen Code als Richtlinie</strong> (Kommentar-Zeilen zählen nicht mit). Wird sie deutlich überschritten, ist die Schnittführung wahrscheinlich zu grob — nachziehen, aber nicht reflexhaft splitten.</li>
+<li><strong>Reine Funktionen</strong> für alle berechnenden Operationen (Solver, Move-Generierung, Symmetrie-Helfer). <strong>DOM-Zugriff strikt lokalisiert</strong> auf die View-/Wiring-Module.</li>
+<li><strong>Single Source of Truth</strong> für State: ein zentrales Modul kennt alle Einstellungen; UI- und Persistenz-Schichten kennen es einseitig.</li>
+<li><strong>Dependency Injection statt Singleton.</strong> Dienste mit natürlicher Einzigartigkeit (i18n, App-State, …) werden am Entry-Point genau einmal instanziiert (<code>const theX = new X(...)</code>) und ihre Referenz explizit weitergereicht. Das <code>static getInstance()</code>-Pattern ist <em>nicht</em> zugelassen — es ist globaler State in Klassen-Hülle und versteckt Abhängigkeiten. Direkte Modul-Globals erst recht nicht.</li>
+</ul>
+<h2 id="2-plattform-constraints">2. Plattform-Constraints</h2>
+<ul>
+<li><strong><code>file://</code>-lauffähig</strong> ohne Webserver, ohne Node.js (<code>knight.md</code> Z. 16). Keine Build-Schritte, keine npm-Dependencies, keine ES-Module-<code>import</code>-Syntax (file:// + CORS-Restriktionen). Klassische <code>&lt;script&gt;</code>-Tags in Reihenfolge.</li>
+<li><strong>Browser-Kompat:</strong> Modern Chromium, Firefox, Safari (jeweils ≥ 2 Jahre). Keine experimentellen APIs ohne Fallback.</li>
+</ul>
+<h2 id="3-replay-testbarkeit">3. Replay-Testbarkeit</h2>
+<ul>
+<li><strong>State als URL-Hash</strong> deep-linkbar: jeder relevante Einstellungs-Zustand ist im URL-Fragment kodiert und per Copy/Paste oder Bookmark wiederherstellbar. Das konkrete Schema (Parameter-Namen + Encoding) wird im State-Modul-Header dokumentiert und stabil gehalten.
+<ul>
+<li>Beim Laden: Hash parsen → State setzen → Brett rendern. Ein Start-Cell-Parameter im Hash triggert Auto-Solve.</li>
+<li>Bei jeder State-Änderung: Hash aktualisieren via <code>history.replaceState</code>, damit der Browser-Verlauf nicht zugemüllt wird.</li>
+</ul>
+</li>
+<li><strong>Headless-CI-tauglich:</strong> Mit <code>chrome --headless --screenshot</code> (oder Playwright/Puppeteer) plus einer State-tragenden URL lässt sich jeder Anwendungs-Zustand reproduzieren und gegen ein Referenz-Bild diffen. Diese Möglichkeit muss ohne Code-Änderung existieren — sie ist die <em>Definition</em> von Replay-Testbarkeit.</li>
+<li><strong>Pure-Function-Tests browserbasiert:</strong> ein dedizierter Test-Bereich lädt nur die DOM-freien Module und führt Assertions aus. Mensch-lesbare Pass/Fail-Liste; CI-tauglich, weil <code>headless</code> mit Exit-Code arbeiten kann.</li>
+</ul>
+<h2 id="4-responsivität--plattform-ergonomie">4. Responsivität / Plattform-Ergonomie</h2>
+<ul>
+<li><strong>Reflow bei Viewport-Änderung</strong> (Resize, Device-Rotation, Tab-Splitting): Baseline-Verhalten, kein Feature. Tour bleibt während Resize erhalten — nur die Geometrie wird aktualisiert.</li>
+<li><strong>Touch-Eingabe</strong> wird <em>vor</em> mausspezifischen Gesten geprüft. Konkret für Phase 8: Rechtsklick zum Blockieren braucht ein Touch-Substitut (z.B. Long-Press oder Toggle-Modus-Button). Diese Mikrofrage gehört explizit in die Phase-8-Vorab-Klärung.</li>
+<li><strong>Hover-States</strong> und <code>cursor: pointer</code> auf klickbaren Elementen.</li>
+<li><strong>Lang laufende Operationen:</strong> Progress-Indikation und Abbruchmöglichkeit. Im F-Plan formal als Phase 9, konzeptuell ein T-Contract-Item.</li>
+</ul>
+<h2 id="5-internationalisierung">5. Internationalisierung</h2>
+<ul>
+<li><strong>i18n ist Architektur</strong>, kein Feature. Zentrale STRINGS-Quelle in einem dedizierten i18n-Modul. Alle UI-Texte — inklusive Dropdown-Option-Werte (Figuren-, Heuristik-, Symmetrie-Namen) — sind übersetzbar; das Bestehen <em>einer</em> Sprache bedeutet noch keine i18n-Architektur.</li>
+<li><strong>Sprach-Switcher</strong> als sichtbares Plattform-Element in der UI. Persistiert via URL-Hash und localStorage.</li>
+<li><strong>Gepflegte Sprachen:</strong> Englisch (Default), Deutsch. Neue Sprache = ein Eintrag in der STRINGS-Map.</li>
+</ul>
+<h2 id="6-accessibility-a11y">6. Accessibility (a11y)</h2>
+<ul>
+<li><strong>Keyboard-Navigation</strong> aller Controls. Brett: Pfeile bewegen Fokus von Zelle zu Zelle, Enter/Space löst Solve aus.</li>
+<li><strong>ARIA-Rollen:</strong> <code>role=&quot;grid&quot;</code> auf <code>#board</code>, <code>role=&quot;gridcell&quot;</code> auf jeder Zelle, <code>aria-label=&quot;Column X, Row Y&quot;</code> (i18n'd) auf jeder Zelle. Status-Zeilen mit <code>aria-live=&quot;polite&quot;</code>.</li>
+<li><strong>Sichtbare Focus-Indikatoren</strong> auf allen Custom-Controls (Inputs, Selects, Buttons, Cells).</li>
+<li><strong>Keine Information rein farblich kodiert.</strong> Tour-Linie + Nummern parallel als Signal; Numbers-Toggle ist Teil-Lösung.</li>
+<li><strong>Lighthouse-Accessibility-Score</strong> ≥ 90 als Akzeptanzkriterium für Phase 7.5 und für jede Folgephase.</li>
+</ul>
+<h2 id="7-performance--robustheit">7. Performance &amp; Robustheit</h2>
+<ul>
+<li><strong>Soft-Step-Limit</strong> als Schutz vor Endlos-Such-Hängern, bis Phase 9 das richtige Cancel-Dialog liefert.</li>
+<li><strong>Defensive Parsing</strong> aller localStorage-Lese-Pfade und URL-Hash-Werte; graceful Degradation wenn Storage oder Hash fehlt.</li>
+<li><strong>&quot;Kein Cap&quot; auf Brettgröße</strong> bleibt User-Entscheidung, aber als bewusster Trade-off dokumentiert.</li>
+<li><strong>Stille Auslassung ist verboten</strong> (globale CLAUDE.md-Regel): keine Fehler werden stillschweigend ignoriert — lieber krachend abbrechen als falsche Ergebnisse produzieren.</li>
+</ul>
+<h2 id="8-code-qualität">8. Code-Qualität</h2>
+<ul>
+<li><strong>Test-Skelett browserbasiert</strong> in einem dedizierten Test-Bereich, mit einfachem <code>assert()</code>-Helfer; Pass/Fail visuell und im Konsolen-Log. Tests laufen ohne Node-/npm-Abhängigkeiten — siehe Plattform-Constraint.</li>
+<li><strong>Beschreibungssatz</strong> nach <code>#</code>-Header in jeder Markdown-Datei (globale <code>CLAUDE.md</code>-Regel).</li>
+<li><strong>Modulgröße:</strong> Jede Code-Datei zielt auf &lt; 250 LOC (Kommentar-Zeilen zählen nicht mit). Abweichen ist erlaubt, wenn die Schnittführung sonst künstlich würde.</li>
+<li><strong>Code-Dokumentation — Mindeststandard:</strong>
+<ul>
+<li><strong>Modul-Header:</strong> Mehrzeiliger Block-Kommentar zu Beginn jeder Quelldatei, der Zweck, zentrale Design-Entscheidungen und ggf. die öffentliche API-Form benennt.</li>
+<li><strong>Funktions-Header:</strong> Jede Funktion / Methode (auch private, auch 1-Zeiler) trägt einen Kommentar direkt darüber. <em>Minimum 1–2 Zeilen</em> — bei komplexen privaten Methoden deutlich mehr. Der Kommentar beschreibt <em>was</em> die Funktion tut und <em>warum</em> (oder was nicht-offensichtlich ist), nicht eine Paraphrase des Codes.</li>
+<li><strong>Inline-Kommentare:</strong> an nicht-offensichtlichen Stellen — subtile Invarianten, Workaround-Begründungen, mathematische Argumente, Reihenfolge-Constraints. Dichte: ausreichend, damit ein neuer Leser dem Algorithmus folgen kann, ohne ihn lange anzustarren. Nicht übertreiben — Selbst-Erklärendes bleibt unkommentiert.</li>
+<li><strong>Sprache durchgängig Englisch.</strong> Keine Mischsprache, auch nicht für Inline-Notizen. Die deutsche Diskussion mit dem User bleibt im <code>PROTOKOLL.md</code>; im Code wird übersetzt.</li>
+</ul>
+</li>
+<li><strong>Keine TypeScript-Migration.</strong> Das Projekt bleibt Vanilla-JS für die Dauer seines Lebens. Typsicherheit liefert nicht die Sprach-Toolchain, sondern disziplinierte Funktions-Signaturen + Kommentare + browserbasierte Tests.</li>
+</ul>
+<hr>
+<h2 id="erfolgs-indikatoren">Erfolgs-Indikatoren</h2>
+<p>Am Ende einer Phase, die diesen T-Contract respektiert, ist erfüllt:</p>
+<ul>
+<li>✓ Alle berührten Module &lt; 250 Zeilen.</li>
+<li>✓ Neue Funktionalität durch URL-Hash deep-linkbar.</li>
+<li>✓ Neue UI-Elemente Keyboard-bedienbar und mit ARIA-Labels versehen.</li>
+<li>✓ Neue UI-Texte in STRINGS gepflegt (en + de).</li>
+<li>✓ Tests im <code>tests/test.html</code>-Skelett für jede neu hinzugekommene Pure Function.</li>
+<li>✓ Lighthouse-Accessibility-Score ≥ 90.</li>
+</ul>
+<hr>
+<h2 id="9-aus-dem-globalen-coding-vertrag-mitgeerbt">9. Aus dem globalen Coding-Vertrag mitgeerbt</h2>
+<p>Diese Prinzipien aus <code>~/.claude/CLAUDE.md</code> (globale, projektübergreifende Vorgaben) sind für <code>aide-knight</code> bindend, auch wenn sie aus den projekt-lokalen Dokumenten nicht direkt sichtbar sind. Hier explizit aufgeführt, damit ein Leser, der nur dieses Projekt vor sich hat, sie nicht aus Indizien rekonstruieren muss:</p>
+<ul>
+<li><strong>Modulkapselung.</strong> Schreibzugriffe auf State <em>anderer</em> Module sind tabu — auch wenn technisch möglich. Lesen über Interface-Funktionen, nicht direktes Greifen in fremde Datenstrukturen. Setter, wenn nötig, kapseln <em>eine zusammenhängende</em> Zustandsänderung, nicht einzelne Felder.</li>
+<li><strong>Architekturprinzip Lokalität.</strong> Funktionen bekommen ihre Inputs als <strong>Parameter</strong>, nicht durch Griff in globalen State. Alle Dependencies sind in der Funktions- bzw. Konstruktor-Signatur sichtbar. <em>Konsequenz für aide-knight:</em> die DI-Pflicht aus Sektion 1 ist die direkte Anwendung dieses Prinzips auf langlebige Service-Objekte.</li>
+<li><strong>Single Point of Access für Dateien.</strong> Wenn eine Datei (Config, Locale, Spec) an mehreren Stellen gelesen wird: genau ein Modul lädt und parst sie; alle Konsumenten bekommen das geparste Ergebnis als Parameter. Kein <code>fs.readFile</code> oder Fetch-Duplikat in Verbraucher-Code.</li>
+<li><strong>Keine willkürlichen <code>setTimeout</code> für Timing-Workarounds.</strong> Statt <code>setTimeout(N)</code> als &quot;warte mal N ms&quot;-Hack: kausale Events (<code>requestAnimationFrame</code>, <code>load</code>, <code>transitionend</code>, Promise-Chains, <code>MutationObserver</code>). Ausnahmen <em>mit Begründung</em>: lang laufende Operationen (cooperative chunked yielding), Polling externer Prozesse ohne Push-API.</li>
+<li><strong>Stille Auslassung verboten.</strong> Code darf Fehler <strong>niemals</strong> stillschweigend ignorieren und mit unvollständigen Ergebnissen weitermachen. Lieber krachend abbrechen als falsche Ergebnisse produzieren. (<code>try { ... } catch {}</code> ist nur dann legitim, wenn es ein dokumentierter Fallback ist, z.B. Storage-fehlt-Toleranz in <code>AppState</code>.)</li>
+<li><strong>Detektor vor Fix.</strong> Wenn ein Bug entdeckt wird, den die Software nicht selbst gefunden hat: erst der Software beibringen, ihn zu erkennen (Test, Assertion, Detektor); am echten lebenden Bug validieren; <em>dann</em> fixen; Detektor erneut laufen lassen.</li>
+<li><strong>Nur lebendiger Code bleibt.</strong> Toter Code (auskommentierte Blöcke, ungenutzte Funktionen, &quot;zur-Sicherheit&quot;-Methoden, tote CSS-Klassen) wird gelöscht, nicht aufbewahrt. Git hat die Historie.</li>
+<li><strong>MD-Dateien: Beschreibungssatz nach der <code>#</code>-Überschrift.</strong> Jedes Markdown-Dokument im Repo öffnet mit <code># Titel</code> + einem kurzen Satz zum Zweck. Gilt für <code>knight.md</code>, <code>knight_plan.md</code>, <code>T_CONTRACT.md</code>, <code>PROTOKOLL.md</code>.</li>
+</ul>
+<p>Diese Liste ist nicht erschöpfend — sie nennt die Punkte, die <em>spürbar</em> das Design dieses Projekts geprägt haben. Bei Konflikt: <code>CLAUDE.md</code> ist Quelle, der T-Contract die Projekt-Anwendung.</p>
+<hr>
+<h2 id="deferred--nicht-im-75-retrofit">Deferred / nicht im 7.5-Retrofit</h2>
+<ul>
+<li><strong>Touch-Substitut für Rechtsklick</strong> → Mikrofrage in Phase 8.</li>
+<li><strong>Cancel-Dialog für lange Suchen</strong> → Phase 9.</li>
+<li><strong>Cross-Browser-Lauf</strong> (Firefox, Safari manuell) → vor Phase 12.</li>
+<li><strong>Farb-Blind-Safe Palette</strong> (alternativer Farb-Modus) → optional, niedrige Priorität.</li>
+<li><strong>Mobile-Portrait-spezifisches Layout</strong> → optional, niedrige Priorität.</li>
+</ul>
+<p>Diese Items sind transparent dokumentiert, nicht versteckt. Wenn ein zukünftiger Phase-Kontext sie braucht, werden sie als Mikrofrage gehoben.</p>
+
+</body>
+</html>

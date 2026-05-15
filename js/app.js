@@ -55,7 +55,7 @@
     theUI.showSensitivityButton(false);
     theBoard.setDimensions(theState.W, theState.H);
     theUI.refreshSymmetryOptions();
-    theUI.setStatus(theI18n.t('clickPrompt'), '');
+    theUI.setStatus(['clickPrompt'], '');
     theState.save();
   }
 
@@ -184,7 +184,7 @@
   theUI.onStopClick = () => {
     if (theSensitivity.isActive()) {
       theSensitivity.cancel();
-      theUI.setStatus(undefined, theI18n.t('stopped', 0));
+      theUI.setStatus(undefined, ['stopped', 0]);
     } else {
       theDriver.stop();
     }
@@ -214,7 +214,7 @@
     theBoard.applyBlockClasses();
     theRenderer.clear();
     dropSolver();
-    theUI.setStatus(theI18n.t('clickPrompt'), '');
+    theUI.setStatus(['clickPrompt'], '');
   }
 
   theBoard.setOnCellClick(onCellClick);
@@ -239,7 +239,7 @@
   if (hashStart) {
     theBoard.setDimensions(theState.W, theState.H);
     theUI.refreshSymmetryOptions();
-    theUI.setStatus(theI18n.t('clickPrompt'), '');
+    theUI.setStatus(['clickPrompt'], '');
     onCellClick(hashStart.col, hashStart.row);
   } else {
     rebuildBoard();

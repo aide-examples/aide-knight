@@ -27,6 +27,8 @@
 class SearchDriver {
   static CHUNK_MS = 50;  // chunk size; small enough to keep ~20fps repaints
 
+  // Capture the DI references. No solver is held yet — that arrives via
+  // .start() each search; the driver itself outlives individual searches.
   constructor(theState, theI18n, theUI, theRenderer) {
     this.theState = theState;
     this.theI18n = theI18n;
@@ -37,6 +39,10 @@ class SearchDriver {
     this.startTime = 0;
   }
 
+  // Begin (or resume) a search against the given Solver instance. Issues a
+  // fresh cancellation token, shows the Stop button, and schedules the first
+  // chunk after one repaint frame so any pre-search status text becomes
+  // visible before the main thread enters the chunk loop.
   start(solver) {
     this.solver = solver;
     this.token++;
@@ -48,17 +54,26 @@ class SearchDriver {
     requestAnimationFrame(() => setTimeout(() => this._chunk(myToken), 0));
   }
 
+  // Silently cancel: any in-flight chunk sees a stale token and exits
+  // without touching UI/renderer. Used when settings change makes the
+  // current search irrelevant.
   invalidate() {
     this.token++;
     this.theUI.showStopButton(false);
   }
 
+  // User-initiated stop: cancel like invalidate(), then publish a 'stopped
+  // after N steps' status so the user sees the search did end.
   stop() {
     this.invalidate();
     const n = this.solver ? this.solver.steps : 0;
-    this.theUI.setStatus(undefined, this.theI18n.t('stopped', n));
+    this.theUI.setStatus(undefined, ['stopped', n]);
   }
 
+  // One chunk of search work. Bails on stale token, checks the elapsed
+  // time-budget, runs the solver for up to CHUNK_MS milliseconds, then
+  // either reports a final outcome (found / exhausted / aborted) or
+  // schedules the next chunk via setTimeout(0) — cooperative yield.
   _chunk(myToken) {
     if (myToken !== this.token) return;
 
@@ -66,7 +81,7 @@ class SearchDriver {
     const budgetMs = this.theState.timeBudget * 1000;
     if (elapsed >= budgetMs) {
       this.theUI.showStopButton(false);
-      this.theUI.setStatus(undefined, this.theI18n.t('aborted', elapsed / 1000, this.solver.steps));
+      this.theUI.setStatus(undefined, ['aborted', elapsed / 1000, this.solver.steps]);
       return;
     }
 
@@ -76,17 +91,17 @@ class SearchDriver {
     if (r.kind === 'found') {
       this.theUI.showStopButton(false);
       this.theRenderer.render(r.path, !!r.closed);
-      this.theUI.setStatus(undefined, this.theI18n.t('solution', r.steps));
+      this.theUI.setStatus(undefined, ['solution', r.steps]);
       this.theUI.showSensitivityButton(true);
       return;
     }
     if (r.kind === 'exhausted') {
       this.theUI.showStopButton(false);
-      this.theUI.setStatus(undefined, this.theI18n.t('noSolution', r.steps));
+      this.theUI.setStatus(undefined, ['noSolution', r.steps]);
       return;
     }
     // timeout → keep going with live progress
-    this.theUI.setStatus(undefined, this.theI18n.t('searching', r.steps, elapsed / 1000));
+    this.theUI.setStatus(undefined, ['searching', r.steps, elapsed / 1000]);
     setTimeout(() => this._chunk(myToken), 0);
   }
 }
@@ -98,6 +113,7 @@ class SearchDriver {
 // responsive throughout.
 
 class SensitivityScan {
+  // Capture DI references; no work happens until .run() is called.
   constructor(theState, theI18n, theUI, theRenderer) {
     this.theState = theState;
     this.theI18n = theI18n;
@@ -107,8 +123,12 @@ class SensitivityScan {
     this._active = false;
   }
 
+  // True while a scan is in progress. App.js checks this on every cell
+  // click so a click cancels an in-progress scan instead of fighting it.
   isActive() { return this._active; }
 
+  // Stop the scan: bump the token (so any pending awaits exit on next yield)
+  // and restore the normal Stop/Sensitivity button visibility.
   cancel() {
     this._token++;
     this._active = false;
@@ -116,6 +136,11 @@ class SensitivityScan {
     this.theUI.showSensitivityButton(true);
   }
 
+  // Sweep every non-blocked start cell. For each, run a budget-bounded
+  // search and record either the step count of the first solution or null
+  // for "no solution within budget". The heatmap is rendered incrementally
+  // — every new sample triggers a recolor pass so the min/max log bounds
+  // stay normalized as samples arrive.
   async run() {
     if (this._active) return;
     this._token++;
@@ -138,7 +163,7 @@ class SensitivityScan {
     for (let i = 0; i < cells.length; i++) {
       if (myToken !== this._token) return;
       const [col, row] = cells[i];
-      this.theUI.setStatus(undefined, this.theI18n.t('sensitivityRunning', i + 1, cells.length));
+      this.theUI.setStatus(undefined, ['sensitivityRunning', i + 1, cells.length]);
 
       const value = await this._scanOneCell(col, row, myToken, budgetMs);
       if (myToken !== this._token) return;
@@ -159,9 +184,13 @@ class SensitivityScan {
     this._active = false;
     this.theUI.showStopButton(false);
     this.theUI.showSensitivityButton(true);
-    this.theUI.setStatus(undefined, this.theI18n.t('sensitivityDone', cells.length));
+    this.theUI.setStatus(undefined, ['sensitivityDone', cells.length]);
   }
 
+  // Run one budget-bounded search from (col, row). Yields to the event
+  // loop between chunks so the Stop button and UI remain responsive.
+  // Returns the step count on success, or null on timeout / exhaustion /
+  // cancellation.
   async _scanOneCell(col, row, myToken, budgetMs) {
     const s = this.theState;
     const solver = new Solver(s.W, s.H, s.activeMoves, col, row, {

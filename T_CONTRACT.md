@@ -9,7 +9,7 @@ Plattform- und Qualitäts-Verpflichtungen für aide-knight, parallel zum funktio
 ## 1. Architektur
 
 - **Objektorientiert ab Tag 1** (`knight.md` Z. 18). Klassen mit klar abgegrenzten Verantwortungen; **kein globaler State außerhalb von Klassen**; kein "wir refactoren das später".
-- **Multi-File von Anfang an.** Mindestens die *grobe* Trennung Domain-Logik vs. State vs. View vs. Orchestrierung muss vor der ersten Codezeile stehen; die genaue Modul-Liste reift während der Implementierung. Anti-Pattern: alles in `app.js` mit Vermerk "Phase 11 splittet das später". **Jede Datei < 250 Zeilen** als harte Obergrenze — wenn überschritten, ist die Schnittführung schon falsch und gehört nachgezogen, nicht aufgeschoben.
+- **Multi-File von Anfang an.** Mindestens die *grobe* Trennung Domain-Logik vs. State vs. View vs. Orchestrierung muss vor der ersten Codezeile stehen; die genaue Modul-Liste reift während der Implementierung. Anti-Pattern: alles in `app.js` mit Vermerk "Phase 11 splittet das später". **Jede Datei < 250 Zeilen Code als Richtlinie** (Kommentar-Zeilen zählen nicht mit). Wird sie deutlich überschritten, ist die Schnittführung wahrscheinlich zu grob — nachziehen, aber nicht reflexhaft splitten.
 - **Reine Funktionen** für alle berechnenden Operationen (Solver, Move-Generierung, Symmetrie-Helfer). **DOM-Zugriff strikt lokalisiert** auf die View-/Wiring-Module.
 - **Single Source of Truth** für State: ein zentrales Modul kennt alle Einstellungen; UI- und Persistenz-Schichten kennen es einseitig.
 - **Dependency Injection statt Singleton.** Dienste mit natürlicher Einzigartigkeit (i18n, App-State, …) werden am Entry-Point genau einmal instanziiert (`const theX = new X(...)`) und ihre Referenz explizit weitergereicht. Das `static getInstance()`-Pattern ist *nicht* zugelassen — es ist globaler State in Klassen-Hülle und versteckt Abhängigkeiten. Direkte Modul-Globals erst recht nicht.
@@ -59,7 +59,13 @@ Plattform- und Qualitäts-Verpflichtungen für aide-knight, parallel zum funktio
 
 - **Test-Skelett browserbasiert** in einem dedizierten Test-Bereich, mit einfachem `assert()`-Helfer; Pass/Fail visuell und im Konsolen-Log. Tests laufen ohne Node-/npm-Abhängigkeiten — siehe Plattform-Constraint.
 - **Beschreibungssatz** nach `#`-Header in jeder Markdown-Datei (globale `CLAUDE.md`-Regel).
-- **Modulgröße:** Jede Code-Datei < 250 Zeilen (entspricht der `knight_plan.md`-Vorgabe für Phase 11, hier aber von Tag 1 an).
+- **Modulgröße:** Jede Code-Datei zielt auf < 250 LOC (Kommentar-Zeilen zählen nicht mit). Abweichen ist erlaubt, wenn die Schnittführung sonst künstlich würde.
+- **Code-Dokumentation — Mindeststandard:**
+  - **Modul-Header:** Mehrzeiliger Block-Kommentar zu Beginn jeder Quelldatei, der Zweck, zentrale Design-Entscheidungen und ggf. die öffentliche API-Form benennt.
+  - **Funktions-Header:** Jede Funktion / Methode (auch private, auch 1-Zeiler) trägt einen Kommentar direkt darüber. *Minimum 1–2 Zeilen* — bei komplexen privaten Methoden deutlich mehr. Der Kommentar beschreibt *was* die Funktion tut und *warum* (oder was nicht-offensichtlich ist), nicht eine Paraphrase des Codes.
+  - **Inline-Kommentare:** an nicht-offensichtlichen Stellen — subtile Invarianten, Workaround-Begründungen, mathematische Argumente, Reihenfolge-Constraints. Dichte: ausreichend, damit ein neuer Leser dem Algorithmus folgen kann, ohne ihn lange anzustarren. Nicht übertreiben — Selbst-Erklärendes bleibt unkommentiert.
+  - **Sprache durchgängig Englisch.** Keine Mischsprache, auch nicht für Inline-Notizen. Die deutsche Diskussion mit dem User bleibt im `PROTOKOLL.md`; im Code wird übersetzt.
+- **Keine TypeScript-Migration.** Das Projekt bleibt Vanilla-JS für die Dauer seines Lebens. Typsicherheit liefert nicht die Sprach-Toolchain, sondern disziplinierte Funktions-Signaturen + Kommentare + browserbasierte Tests.
 
 ---
 

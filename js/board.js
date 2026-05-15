@@ -6,6 +6,9 @@
 // display CSS variables. Keyboard navigation on cells is added in B4 (a11y).
 
 class Board {
+  // Bind to the host #board element, store DI references, and wire the
+  // viewport-resize and keyboard-nav listeners. The cell DOM is NOT built
+  // until setDimensions() — at construction we don't yet know W/H.
   constructor(boardEl, theI18n, theState) {
     this.boardEl = boardEl;
     this.theI18n = theI18n;
@@ -24,19 +27,30 @@ class Board {
   static SVG_NS = 'http://www.w3.org/2000/svg';
   static NUM_FONT_MIN_PX = 9;
 
+  // Inject the callback fired on a primary click (or Enter/Space) on a cell.
   setOnCellClick(handler) { this.onCellClick = handler; }
+  // Inject the callback fired on a right-click / long-press / Shift+Enter,
+  // i.e. the "toggle block" gesture.
   setOnCellBlock(handler) { this.onCellBlock = handler; }
 
+  // Set the board to a new W×H and rebuild the cell grid. Discards the old
+  // DOM; callers that need to preserve a tour must re-render afterwards.
   setDimensions(W, H) {
     this.W = W;
     this.H = H;
     this._build();
   }
 
+  // Look up a cell DOM element by its (col, row) coordinates.
+  // Returns undefined if out of range — callers check before use.
   getCell(col, row) {
     return this.cellByIdx[row * this.W + col];
   }
 
+  // Push visibility flags from AppState into the two driving CSS variables
+  // (--num-display, --overlay-display). Also auto-hides the numbers when
+  // the rendered font would fall below NUM_FONT_MIN_PX — illegibly small
+  // numbers create visual noise without conveying anything.
   applyVisibility() {
     const state = this.theState;
     const fontPx = this.currentCellPx * 0.32;
@@ -59,6 +73,11 @@ class Board {
   }
 
 
+  // Build the cell grid from scratch: clear the container, allocate cellByIdx,
+  // create one .cell element per (col, row) with role/aria attributes, wire
+  // event handlers, then append the SVG overlay used by Renderer for the
+  // tour line. Roving-tabindex initial focus goes to state.lastStart if
+  // valid, otherwise top-left.
   _build() {
     this._applyCellSize();
     this.boardEl.innerHTML = '';
@@ -107,6 +126,12 @@ class Board {
     this.boardEl.appendChild(this.overlay);
   }
 
+  // Wire grid-style keyboard navigation onto the board container: arrows
+  // move the focus ring between cells (roving tabindex), Home/End/PageUp/
+  // PageDown jump to the row/column extremes, Enter/Space activates click
+  // (or Shift+Enter activates block). Bound once at construction; works
+  // even after _build() rebuilds the cell DOM because the listener is on
+  // the parent.
   _setupKeyboardNav() {
     this.boardEl.addEventListener('keydown', (e) => {
       const focused = document.activeElement;
@@ -141,6 +166,9 @@ class Board {
     });
   }
 
+  // Move the roving-tabindex focus to (col, row): demote whichever cell
+  // currently has tabindex=0, promote the new one, and call .focus() so
+  // the visible focus ring follows. No-op if (col, row) is out of bounds.
   _focusCell(col, row) {
     const old = this.boardEl.querySelector('.cell[tabindex="0"]');
     if (old) old.tabIndex = -1;
@@ -205,6 +233,10 @@ class Board {
     }
   }
 
+  // Recompute the per-cell pixel size from the viewport and push it to the
+  // --board-cell CSS variable plus the explicit grid-template / width /
+  // height styles. Capped at 60 px upward and 2 px downward, with margins
+  // reserved for the controls above and below the board.
   _applyCellSize() {
     const maxBoardW = Math.max(120, window.innerWidth  - 80);
     const maxBoardH = Math.max(120, window.innerHeight - 240);
@@ -221,6 +253,9 @@ class Board {
     this.applyVisibility();
   }
 
+  // Re-fit cell size on viewport changes. Debounced trailing-edge so a drag
+  // of the window border triggers exactly one expensive reflow at rest,
+  // not one per intermediate pixel.
   _setupResizeListener() {
     let resizeTimer = null;
     window.addEventListener('resize', () => {

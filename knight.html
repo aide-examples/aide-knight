@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>knight</title>
+<style>
+:root {
+  --color-light:  #f0d9b5;
+  --color-dark:   #b58863;
+  --color-ink:    #3a2410;
+  --color-accent: #c0392b;
+}
+body {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: var(--color-ink);
+  background: #fbf6ee;
+  max-width: 48rem;
+  margin: 2rem auto;
+  padding: 0 1.5rem 4rem;
+  line-height: 1.55;
+}
+h1, h2, h3, h4 { font-family: system-ui, -apple-system, sans-serif; }
+h1 { font-size: 1.7rem; border-bottom: 2px solid var(--color-dark); padding-bottom: 0.3rem; }
+h2 { font-size: 1.3rem; margin-top: 2rem; border-bottom: 1px solid var(--color-dark); padding-bottom: 0.2rem; }
+h3 { font-size: 1.1rem; margin-top: 1.6rem; }
+h4 { font-size: 1rem; margin-top: 1.2rem; }
+a { color: var(--color-accent); }
+a:hover { text-decoration: none; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--color-light);
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+  font-size: 0.92em;
+}
+pre {
+  background: var(--color-light);
+  padding: 0.8rem 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  border-left: 3px solid var(--color-dark);
+}
+pre code { background: transparent; padding: 0; }
+blockquote {
+  border-left: 3px solid var(--color-accent);
+  margin: 1rem 0;
+  padding: 0.2rem 1rem;
+  color: #5a3a1e;
+  background: #fff9ee;
+}
+table { border-collapse: collapse; margin: 1rem 0; }
+th, td { border: 1px solid var(--color-dark); padding: 0.3rem 0.7rem; text-align: left; }
+th { background: var(--color-light); }
+img { max-width: 100%; height: auto; border: 1px solid var(--color-dark); }
+hr { border: none; border-top: 1px dashed var(--color-dark); margin: 2rem 0; }
+.nav-back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+}
+</style>
+</head>
+<body>
+<a class="nav-back" href="index.html">← back to app</a>
+<p>Dies ist die Anweisung, eine App zu erstellen, die das knight´s tour problem löst und die Lösung visualisiert.</p>
+<p>Es geht darum, einen Springer auf einem Schachbrett so zu bewegen, dass er jedes Feld genau einmal betritt.</p>
+<p>Die App soll das Problem möglichst effektiv lösen, durch eine Kombination aus DFS Baumsuche und einer Heuristik, die günstig erscheinende Wege bevorzugt (Warnsdorff oder ähnlich).</p>
+<p>Es soll ein einfaches Web-UI geben, bei dem man die Brettabmessungen (Breite und Höhe) unabhängig voneinander ändern und den Startpunkt festlegen kann. Die Felder sollen in den typischen Fraben dargesetllt werden, die man bei Schachbrettern verwendet, die Zugfolge wird durch einen Linienzug visualsiert, welcher die Felder miteinander verbindet. Das erste Feld der Tour erhält die Nummer 1, das letzte die 64 (bzw. die höchste Nummer bei Boards, die nicht 8x8 als Dimension haben). Der User kann über eine Checkbox die Anzeige der Feldnummern oder der Linien an- und ausschalten. Bedenke, dass ich auch Brettgrößen mit z.B. 100 X 200 Feldern ausprobieren möchte.
+Teste das Programm mit 100x200!</p>
+<p>Es wird gezeigt, wie viele Zugversuche das Program benötigt hat, bis es die dargestellte Lösung gefunden hat. Dabei gilt auch das Zurücknehmen eines vorherigen Zugs als (weiterer) Zug.</p>
+<p>Normalerweise wird die erste gefundene Lösung gezeigt, Wenn man jedoch erneit auf dasselbe Startfeld klickt, wird von der aktuell gefundenen Lösung aus weitergesucht.</p>
+<p>Wenn eine Lösung gefunden wurde, soll ein Button erscheinen, der &quot;Starfeld-Sensitivität&quot; heißt. Ein Klick auf diesen Button führt die Suche nach der jeweils ersten Lösung von jedem Startfeld einzeln aus und schreibt in das Startfeld die Anzahl der Züge, die jeweils bis zur ersten Lösung benötigt werden.</p>
+<p>Es soll möglich sein, die App lokal auszuführen, ohne dass man extra einen Webserver installieren oder nodeJS installieren muss. Benutze dennoch mehrere Dateien und nutze das file:// Protokoll.</p>
+<p>Der Code (HTML, CSS, JS) soll sehr gut objektorientiert strukturiert sein.</p>
+<p>Manchmal gibt es keine gültige Tour - dann würde eine vollständige Suche durchgeführt. Das wollen wir nicht. Frag grundsätzlich alle 5 Sekunden nach, ob du noch weiter suchen sollst.</p>
+<p>Wir wollen eine zusätzliche Ckeckbox haben, die nur geschlossene Touren produziert. Überleg dir ein intelligentes Verfahren! Du könntest z.B. abwechselnd an beiden Enden des Pfades anbauen. Wenn eine Tour geschlossen ist, dann trage in der grafischen Darstellung zusätzlich eine Linie vom letzten zum ersten Feld ein.</p>
+<p>Analog wollen wir optional verlangen können, dass die Tour rotationssymmetrisch ist, sofern das Spielfeld quadratisch ist. Wenn du clever agierst, musst du nur ein Viertel der ganzen Wegstrecke prüfen.</p>
+<p>Um die Performance zu verbessern, solltest du bei der Ermittlung der zulässigen nächsten Felder <em>nicht</em> x und y auf die Überschreitung der Board-Dimensionen überprüfen. Es ist deutlich besser, wenn du einen breiten Streifen mit vorab blockierten Feldern um das Board herum legst.</p>
+<p>Das Einführen blockierter Felder erlaubt es uns auch, beliebige Formen als Spielfläche zu verwenden, in dem wir durch Mausklick (rechte Maus?) Felder manuell individuell blockieren bzw. wieder freigeben.</p>
+<p>Neben der Warnsdorff Regel soll alternativ &quot;brute force&quot; und &quot;outside in&quot; als Heuristik anwählbar sein. DIe letztere Regel bevorzugt Felder mit möglichst großem euklidischen Abstand zum Zentrum der Spielfläche.</p>
+<p>Es soll weiterhin (für DFS und für alle Heuristiken) die Möglichkeit geben, die Definitionsfreihenfolge der ZUgmöglichkeiten der Figur su durchmischen. Diese Reihenfolge spielt fast immer eine ergebliche Rolle. Im Tooltip su dem Button, über den man die Definitionsreihenfpoöge mischt, soll die aktuell gültiger Reihenfolge gezeigt werden.</p>
+<p>Zusätzlich zu dem Springer-Zug wollen wir mit anderen Zugarten experimentieren können. Wenn wir den Springer als (1,2) charakterisieren, dann sollen aucgh (1,4), (2,3) und (3,4) als &quot;Figuren&quot; angeboten werden.</p>
+
+</body>
+</html>

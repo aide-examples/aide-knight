@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PROTOKOLL</title>
+<style>
+:root {
+  --color-light:  #f0d9b5;
+  --color-dark:   #b58863;
+  --color-ink:    #3a2410;
+  --color-accent: #c0392b;
+}
+body {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: var(--color-ink);
+  background: #fbf6ee;
+  max-width: 48rem;
+  margin: 2rem auto;
+  padding: 0 1.5rem 4rem;
+  line-height: 1.55;
+}
+h1, h2, h3, h4 { font-family: system-ui, -apple-system, sans-serif; }
+h1 { font-size: 1.7rem; border-bottom: 2px solid var(--color-dark); padding-bottom: 0.3rem; }
+h2 { font-size: 1.3rem; margin-top: 2rem; border-bottom: 1px solid var(--color-dark); padding-bottom: 0.2rem; }
+h3 { font-size: 1.1rem; margin-top: 1.6rem; }
+h4 { font-size: 1rem; margin-top: 1.2rem; }
+a { color: var(--color-accent); }
+a:hover { text-decoration: none; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--color-light);
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+  font-size: 0.92em;
+}
+pre {
+  background: var(--color-light);
+  padding: 0.8rem 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  border-left: 3px solid var(--color-dark);
+}
+pre code { background: transparent; padding: 0; }
+blockquote {
+  border-left: 3px solid var(--color-accent);
+  margin: 1rem 0;
+  padding: 0.2rem 1rem;
+  color: #5a3a1e;
+  background: #fff9ee;
+}
+table { border-collapse: collapse; margin: 1rem 0; }
+th, td { border: 1px solid var(--color-dark); padding: 0.3rem 0.7rem; text-align: left; }
+th { background: var(--color-light); }
+img { max-width: 100%; height: auto; border: 1px solid var(--color-dark); }
+hr { border: none; border-top: 1px dashed var(--color-dark); margin: 2rem 0; }
+.nav-back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+}
+</style>
+</head>
+<body>
+<a class="nav-back" href="index.html">← back to app</a>
+<h1 id="protokoll">Protokoll</h1>
+<p>Verbatim-nahe Aufzeichnung des aide-knight-Aufbaus pro Phase, als Quelle für die didaktische Destillation in Phase 12 (siehe <code>knight_plan.md</code>).</p>
+<hr>
+<h2 id="phase-0--tabula-rasa--self-commitment">Phase 0 — Tabula rasa &amp; Self-Commitment</h2>
+<h3 id="kontext">Kontext</h3>
+<p>Vor Phase 0 lag im Verzeichnis eine vollständige, lauffähige Knight's-Tour-Implementierung (8 Dateien, ~890 Zeilen). Diese wurde <strong>vor Beginn der didaktischen Übung hart entfernt</strong>, damit der Aufbau aus der reinen <code>knight.md</code>-Spezifikation heraus tatsächlich bei Null beginnt.</p>
+<h3 id="aktionen">Aktionen</h3>
+<ol>
+<li><strong>Sicherung des Alt-Codes</strong> als Git-Tag <code>pre-rebuild-2026-05-13</code> — der alte Code bleibt im Git-Objekt-Store auffindbar, falls didaktisch später ein Vergleich gewünscht ist.</li>
+<li><strong>Hartes Löschen</strong> der bestehenden Quelldateien (<code>app.js</code>, <code>board.js</code>, <code>solver.js</code>, <code>ui.js</code>, <code>index.html</code>, <code>style.css</code>, <code>knight_plan.md</code>) per <code>git rm</code>. Im Working-Tree blieb nur <code>knight.md</code>.</li>
+<li><strong>Self-Commitment des AI-Assistenten:</strong> Während aller folgenden Phasen wird der alte Code <strong>nicht</strong> konsultiert — weder per <code>Read</code>, noch per <code>Bash</code> (<code>git show pre-rebuild-2026-05-13:...</code>), noch über andere Werkzeuge. Diese Selbst-Verpflichtung ist Teil der didaktischen Reinheit: würde im Hintergrund &quot;abgeschrieben&quot;, verlöre der Lehrwert seine Substanz.</li>
+<li><strong>Master-Plan persistiert</strong> als neuer <code>aide-knight/knight_plan.md</code> — der ephemere Plan aus <code>~/.claude/plans/</code> wäre für die spätere Phase-12-Destillation nicht verlässlich verfügbar; jetzt ist er versioniert im Repo.</li>
+</ol>
+<h3 id="commit">Commit</h3>
+<p><code>51ee975 — Phase 0: tabula rasa for didactic rebuild</code></p>
+<hr>
+<h2 id="phase-1--88-brett-rendert-klick-erkennbar">Phase 1 — 8×8-Brett rendert, Klick erkennbar</h2>
+<h3 id="mikrofragen--antworten">Mikrofragen &amp; Antworten</h3>
+<p><strong>Q: Welche Farben für das Schachbrett?</strong>
+A: Klassisches Schach-Schema (chess.com / lichess-Defaults): <code>#f0d9b5</code> (hell, beige) und <code>#b58863</code> (dunkel, braun).</p>
+<p><strong>Q: Schwarzer Text auf dunklen Feldern — kontraststark genug? Und führt eine Mischung &quot;weiß auf dunkel / schwarz auf hell&quot; zu visueller Unruhe?</strong>
+A: Ja, Mischung ist unruhig. Empfohlene Lösung: <strong>eine</strong> Tintenfarbe für alles, dunkelbraun <code>#3a2410</code> — auf hell hochkontrastiv, auf dunkel noch lesbar. Akzeptiert.</p>
+<p><strong>Q: Wo soll die Klick-Koordinate erscheinen, und wie?</strong>
+A: Status-Zeile unter dem Brett. Format: <code>&lt;col&gt; / &lt;row&gt;</code> (also <code>4 / 7</code>), sehr schlicht. Menü-Elemente kommen später oben.</p>
+<p><strong>Q: Inline (HTML+CSS+JS in einer Datei) oder schon jetzt mehrere Dateien?</strong>
+A: Empfehlung: drei getrennte Dateien (<code>index.html</code>, <code>style.css</code>, <code>app.js</code>) ab Anfang — der echte Multi-File-Refactor (board.js / solver.js / ui.js) kommt in Phase 11. Akzeptiert.</p>
+<h3 id="implementation">Implementation</h3>
+<ul>
+<li><code>index.html</code> — Minimalskelett (<code>&lt;div id=&quot;board&quot;&gt;</code> + <code>&lt;div id=&quot;status&quot;&gt;</code>), kein Framework, kein Build-Schritt.</li>
+<li><code>style.css</code> — CSS-Variablen für Zellgröße (60px) und Farben, CSS-Grid für das Brett, Hover-Effekt per <code>filter: brightness(1.07)</code>. Tintenfarbe als <code>--color-ink</code>.</li>
+<li><code>app.js</code> — Build-Loop von <code>row = 7</code> (oben sichtbar) bis <code>row = 0</code> (unten), um die Schach-Konvention <code>a1 = (0,0)</code> einzuhalten. Feldfarbe folgt <code>(row + col) % 2 === 0 → dark</code> (macht <code>a1</code> zu einem dunklen Feld, regelkonform).</li>
+</ul>
+<h3 id="user-test">User-Test</h3>
+<p>Doppelklick auf <code>index.html</code> öffnet das Brett im Browser. Klick auf ein Feld zeigt unten <code>&lt;col&gt; / &lt;row&gt;</code>. User-Bestätigung per Screenshot:</p>
+<p><img src="_assets/phase-1-board.png" alt="Phase 1: gerendertes 8×8-Brett"></p>
+<h3 id="commit">Commit</h3>
+<p><code>dbe9358 — Phase 1: 8x8 chessboard renders, click reports cell coordinates</code></p>
+<hr>
+<h2 id="phase-2--solver-kern-dfs--warnsdorff-linie--nummern">Phase 2 — Solver-Kern (DFS + Warnsdorff), Linie + Nummern</h2>
+<h3 id="mikrofragen--antworten-vorab">Mikrofragen &amp; Antworten (vorab)</h3>
+<p><strong>Q: Welche Farbe für die Tour-Linie?</strong>
+A: Kräftiges Rot <code>#c0392b</code>. Kontrastiert gut auf beigem und braunem Feld.</p>
+<p><strong>Q: Wo soll der Schritt-Zähler erscheinen, und in welcher Wortwahl?</strong>
+A: Zweite Status-Zeile unter dem Brett, Wortlaut <code>Lösung nach N Schritten.</code> bzw. <code>Keine Lösung nach N Schritten.</code> — User-Diktion: &quot;Schritte&quot;, nicht &quot;Zugversuche&quot; (obwohl knight.md letzteren Begriff verwendet).</p>
+<h3 id="mikrofragen--antworten-während-der-implementierung">Mikrofragen &amp; Antworten (während der Implementierung)</h3>
+<p><strong>Q (vom User mid-phase): Soll das UI komplett auf Englisch sein, mit Vorbereitung für weitere Sprachen?</strong>
+A: Ja. Eingebaut: <code>STRINGS</code>-Objekt mit Spracheinträgen (<code>en</code> als aktiv, <code>de</code> mitgepflegt) und <code>LANG</code>-Konstante am Kopf von <code>app.js</code>. Neue Sprache hinzufügen = ein weiterer Eintrag im Objekt.</p>
+<p><strong>Q (vom User mid-phase): Können die Tour-Nummern nicht oberhalb der roten Linie liegen statt darunter?</strong>
+A: Ja. Z-Index-Layering: Felder unten, Linie (<code>#overlay</code>) <code>z-index: 1</code>, Nummern (<code>.num</code>) <code>z-index: 2</code>. Stacking-Kontext wird über <code>#board { z-index: 0 }</code> erzwungen, damit die Reihenfolge nicht aus dem äußeren Kontext gestört werden kann.</p>
+<p><strong>Q (vom User mid-phase): Sollte ich nicht schon jetzt zwischen DFS und Warnsdorff wählen können?</strong>
+A: Begriffsklärung erforderlich. DFS ist <em>der</em> Suchalgorithmus, Warnsdorff eine Heuristik <em>innerhalb</em> des DFS für die Reihenfolge der Kandidaten. <code>knight.md</code> (Z. 30) sieht drei Heuristik-<em>Optionen</em> vor (Warnsdorff / Brute Force / Outside-In), alle auf DFS-Basis. Entscheidung: bei Plan bleiben — Heuristik-Auswahl kommt in <strong>Phase 4</strong>, Phase 2 fährt mit Warnsdorff fest verdrahtet.</p>
+<h3 id="implementation">Implementation</h3>
+<ul>
+<li><strong>Solver</strong> (iterativ, Stack-basiert):
+<ul>
+<li><code>visited</code> als <code>Int32Array(W*H)</code> — 0 = unbesucht, sonst Tour-Nummer. Cache-freundlich, vorbereitet für große Bretter.</li>
+<li>Pro Stack-Frame: bereits Warnsdorff-sortierte Kandidatenliste + Cursor. Auf Backtrack: Frame poppen, <code>visited</code> und <code>path</code> zurücksetzen.</li>
+<li><strong>Schritt-Counter:</strong> jeder Forward-Versuch UND jeder Backtrack zählen je +1.</li>
+</ul>
+</li>
+<li><strong>Render</strong> (im selben <code>app.js</code>, Multi-File kommt in Phase 11):
+<ul>
+<li>SVG-Overlay als Kind von <code>#board</code>, <code>viewBox=&quot;0 0 8 8&quot;</code> (eine Einheit pro Zelle, automatisch skalierend).</li>
+<li>Tour-Pfad als einzelne <code>&lt;polyline&gt;</code>, <code>stroke=&quot;#c0392b&quot;</code>, <code>stroke-width=&quot;0.08&quot;</code> (≈ 4.8 px bei 60-px-Zellen).</li>
+<li>Y-Achse gespiegelt für die SVG-Koordinaten, weil row=0 logisch unten, SVG-Y aber von oben zählt: <code>y = BOARD_SIZE - 1 - row + 0.5</code>.</li>
+<li>Nummern als <code>&lt;div class=&quot;num&quot;&gt;N&lt;/div&gt;</code> in der jeweiligen Zelle, font-size proportional zur Zellgröße (CSS-Variable).</li>
+<li>Bei jedem neuen Klick: alle alten Nummern entfernen, SVG leeren.</li>
+</ul>
+</li>
+<li><strong>i18n-Scaffold:</strong> <code>STRINGS = { en: {...}, de: {...} }</code>, <code>LANG = 'en'</code>, alle UI-Strings über das <code>T</code>-Alias. <code>&lt;html lang&gt;</code>, <code>document.title</code>, h1 und Status-Zeilen werden zur Laufzeit gesetzt.</li>
+</ul>
+<h3 id="user-test">User-Test</h3>
+<p>8×8-Klick auf beliebiges Feld liefert in unter 100 ms eine vollständige Tour. Die ersten Sprünge prüfen sich visuell als gültige <code>(±1, ±2)</code>-Bewegungen. UI komplett auf Englisch. Layer-Reihenfolge sichtbar: Linie unter den Nummern.</p>
+<p><img src="_assets/phase-2-solution.png" alt="Phase 2: gelöste Tour mit roter Linie und Nummern"></p>
+<h3 id="commit">Commit</h3>
+<p><code>1d9f19c — Phase 2: knight's tour solver core (iterative DFS + Warnsdorff) with line and number render</code></p>
+<hr>
+<h2 id="phase-3--variable-brettmaße-dynamisches-padding-performance-fundament">Phase 3 — Variable Brettmaße, dynamisches Padding, Performance-Fundament</h2>
+<h3 id="mikrofragen--antworten">Mikrofragen &amp; Antworten</h3>
+<p><strong>Q: Wieviel Padding um das Brett (ersetzt den Bounds-Check im Solver)?</strong>
+A: Dynamisch pro Figur — beim Solver-Start aus der aktiven Move-Liste berechnet: <code>pad = max(|dx|, |dy|)</code>. Für den Springer ergibt das 2; für die in <code>knight.md</code> Zeile 33 genannten zukünftigen Figuren (1,4)/(2,3)/(3,4) entsprechend 4, 3, 4. Cleanere Abstraktion als ein hartcodierter Wert; trägt automatisch durch alle späteren Phasen.</p>
+<p><strong>Q: Maximale Brettgröße?</strong>
+A: Kein Cap. Der User darf eintragen, was er will — auch Werte, bei denen der Browser ins Schwitzen kommt. Phase 9 bringt mit dem 5-Sekunden-<code>confirm()</code> einen Abbruch-Mechanismus für lange Läufe.</p>
+<p><strong>Q: Wie soll das W/H-Eingabe-UI sich verhalten?</strong>
+A: Zwei Number-Inputs oben über dem Brett, Auto-Apply auf <code>blur</code> oder Enter. Minimal-UI, kein extra Apply-Button.</p>
+<h3 id="implementation">Implementation</h3>
+<ul>
+<li><strong><code>buildBoard()</code></strong> ersetzt den früheren Top-Level-Build-Loop. Wird beim Start und bei jeder Dimensionsänderung neu aufgerufen.
+<ul>
+<li>Berechnet die Zellgröße <code>cellPx = clamp(2, min(viewport / W, viewport / H), 60)</code> — passt sich an die Viewport-Größe an, damit auch 200×100 ohne Scrollen sichtbar bleibt.</li>
+<li>Grid-Spaltenanzahl, Brettgröße, Zellgröße werden inline auf <code>boardEl.style</code> gesetzt — <code>repeat(var(--...), ...)</code> wäre eleganter, aber Browser-Support für <code>var()</code> als Repeat-Count ist uneinheitlich.</li>
+</ul>
+</li>
+<li><strong>Padding-Solver:</strong> <code>visited</code> ist jetzt <code>Int32Array((W+2·pad) · (H+2·pad))</code>. Padding-Felder werden vor dem DFS auf <code>-1</code> gesetzt; die Kandidaten-Schleife schaut nur noch auf <code>visited === 0</code> und fängt damit gleichzeitig Out-of-Bounds und bereits besuchte Felder ab — eine Verzweigung pro Move-Test weniger.</li>
+<li><strong>State-Refactor:</strong> <code>BOARD_SIZE</code> ist weg. <code>W</code>, <code>H</code>, <code>cellByIdx</code>, <code>overlay</code> sind nun <code>let</code>-Variablen auf Modul-Ebene, von <code>buildBoard()</code> neu gesetzt. Multi-File-OO-Refactor kommt erst in Phase 11 — bewusst nicht jetzt.</li>
+</ul>
+<h3 id="smoke-tests-solver-kern-node-standalone">Smoke-Tests (Solver-Kern, Node-Standalone)</h3>
+<table>
+<thead>
+<tr>
+<th>Brett</th>
+<th>Startfeld</th>
+<th>Schritte</th>
+<th>Zeit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8×8</td>
+<td>(0,0)</td>
+<td>63</td>
+<td>2 ms</td>
+</tr>
+<tr>
+<td>8×8</td>
+<td>(3,3)</td>
+<td>63</td>
+<td>10 ms</td>
+</tr>
+<tr>
+<td>5×5</td>
+<td>(0,0) dunkel</td>
+<td>24</td>
+<td>1 ms</td>
+</tr>
+<tr>
+<td>5×5</td>
+<td>(2,2) dunkel</td>
+<td>24</td>
+<td>0 ms</td>
+</tr>
+<tr>
+<td>100×200</td>
+<td>(0,0)</td>
+<td>19 999</td>
+<td>101 ms</td>
+</tr>
+<tr>
+<td>100×200</td>
+<td>(50,100)</td>
+<td>19 999</td>
+<td>53 ms</td>
+</tr>
+</tbody>
+</table>
+<p>100×200 löst weit unter der &quot;einstellige Sekunden&quot;-Akzeptanzschwelle.</p>
+<h3 id="user-test-browser--zwei-lehrreiche-befunde">User-Test (Browser) — zwei lehrreiche Befunde</h3>
+<p><strong>1) 200×100 — der erwartete Stresstest.</strong></p>
+<p><img src="_assets/phase-3-200x100.png" alt="Phase 3: 200×100 Brett, Warnsdorff löst sauber durch"></p>
+<p><code>Solution found after 19999 steps.</code> Das sind <code>W·H − 1</code> Schritte und <strong>0 Backtracks</strong> — Warnsdorff &quot;läuft hier durch&quot;, ohne ein einziges Mal in eine Sackgasse zu geraten. Die roten Tour-Linien überlagern sich so dicht, dass kaum ein einzelner Sprung sichtbar bleibt — das Brett wirkt fast einfarbig. Für große, breite Bretter ist Warnsdorff praktisch perfekt.</p>
+<p><strong>2) 8×4 — der überraschende Pathologie-Fall.</strong></p>
+<p><img src="_assets/phase-3-8x4.png" alt="Phase 3: 8×4 Brett, 13.4 Millionen Schritte"></p>
+<p><code>Solution found after 13450907 steps.</code> Bei nur 32 Feldern. Das DFS hat 13.45 Millionen Versuche gebraucht — davon ≈ 6.7 Millionen Backtracks (jeder Backtrack zählt als 1, jeder Vorwärtszug als 1).</p>
+<p><strong>Warum?</strong> Reine Warnsdorff-Heuristik ist auf schmalen Rechteck-Brettern bekannt-unzuverlässig. Bei Gleichstand des Onward-Count entscheidet die Move-Definitionsreihenfolge willkürlich, und auf 8×4 führt diese willkürliche Wahl die Suche in eine Sackgassen-Region — DFS rettet das Ergebnis am Ende, aber mühsam.</p>
+<p>Standard-Fix in der Literatur (Pohl 1967, später Roth, Squirrel/Cull): <strong>Tie-Breaker-Regel</strong> bei gleichem Onward-Count, z. B. das Feld bevorzugen, das näher an einer Brett-Ecke liegt. Das ist hier <em>nicht</em> eingebaut und gehört auch nicht in Phase 3. Phase 4 wird zusätzliche Heuristiken (Outside-In, Brute Force) und einen Mix-Button bringen — ggf. wäre danach der richtige Zeitpunkt für einen Warnsdorff-Tie-Breaker als bewusste Phase.</p>
+<p><strong>3) 5×5 — die Paritäts-Beobachtung des Users.</strong></p>
+<p>Auf 5×5 existiert eine offene Springertour nur, wenn das <strong>Startfeld dunkel</strong> ist. Reine Färbungs-Mathematik:</p>
+<ul>
+<li>5×5 = 25 Felder, davon 13 dunkel (Konvention <code>(row+col)%2===0</code>) und 12 hell.</li>
+<li>Ein Springerzug wechselt immer die Feldfarbe → Tour der Länge 25 alterniert <code>Start-Farbe, andere, Start-Farbe, …</code> = 13 × Start-Farbe + 12 × andere.</li>
+<li>Start = hell ⇒ 13 helle Felder nötig, aber es gibt nur 12 ⇒ unmöglich.</li>
+</ul>
+<p>Damit hat das <code>5×5 verweigert sinnvoll</code>-Akzeptanzkriterium aus dem Master-Plan ein konkretes, mathematisch sauberes Beispiel: Klick auf z. B. <code>(0,1)</code> (hell) liefert eine echte &quot;No solution found&quot;-Antwort. Schöne Mini-Anekdote für Phase 12.</p>
+<h3 id="commit">Commit</h3>
+<p><code>fe74bf2 — Phase 3: variable W*H boards, padded solver, dynamic cell size</code></p>
+<h3 id="nachzügler-resize-listener-didaktisch-relevant">Nachzügler: Resize-Listener (didaktisch relevant!)</h3>
+<p>User-Hinweis direkt nach Phase-3-Akzeptanz:</p>
+<blockquote>
+<p>&quot;Das Board muss auf einen window resize event reagieren und sich anpassen, auch wenn keine zusätzliche User-Interaktion erfolgt. Wenn wir auf einem Android-Device sind und das Gerät von Portrait nach Landscape drehen, muss es auch klappen … ist da meine Erwartung zu hoch?&quot;</p>
+</blockquote>
+<p><strong>Technische Korrektur:</strong> <code>applyCellSize()</code> ist als Pure-CSS-Resize-Pfad aus <code>buildBoard()</code> herausgezogen — verändert nur <code>--board-cell</code> und die inline Grid-Geometrie auf <code>boardEl.style</code>, keine DOM-Rekonstruktion. Resize-Listener auf <code>window</code> mit Trailing-Edge-Debounce (80 ms). Die gerenderte Tour bleibt erhalten: SVG-Overlay skaliert über seine <code>viewBox</code>, Schriftgrößen folgen der CSS-Variable.</p>
+<p><strong>Meta-Erkenntnis (wichtiger als die Code-Korrektur):</strong> Die Erwartung des Users war nicht zu hoch. Resize-Reaktion gehört bei einer Webapp, deren ganzer Sinn aus der visuellen Darstellung kommt, zum <strong>Baseline-Verhalten</strong> — wie Hover-States, sensible Defaults, Keyboard-Bedienbarkeit. YAGNI-Disziplin gegen Featuritis darf das nicht aushebeln; &quot;der Plan erwähnt es nicht&quot; ist kein Argument, sondern eine Lücke im Plan.</p>
+<p>Diese Erkenntnis ist als neue Sektion <strong>&quot;Baseline-Verhalten ist kein Feature&quot;</strong> in <code>~/.claude/CLAUDE.md</code> verankert, damit sie auch zukünftige Projekte prägt. Konkretes Anti-Pattern, das ich hier zeige: Plan-Wortlaut zu eng auslegen (&quot;dynamische Canvas-Größe&quot; auf &quot;passt sich an W/H an&quot; reduzieren, statt auch &quot;passt sich an Viewport-Änderungen an&quot; mitzudenken).</p>
+<p>Sehr relevanter Punkt für die Phase-12-Lehrunterlage unter &quot;Was Profis anders machen&quot; — gerade weil hier der <strong>User</strong> den Profistandard setzt und die AI das nachholt.</p>
+<h3 id="nachzügler-commit">Nachzügler-Commit</h3>
+<p><code>94e018d — Phase 3 follow-up: window resize listener, preserves rendered tour</code></p>
+<hr>
+<h2 id="phase-4--heuristik-wahl-figuren-mix-button-persistenz">Phase 4 — Heuristik-Wahl, Figuren, Mix-Button, Persistenz</h2>
+<h3 id="mikrofragen--antworten-vorab">Mikrofragen &amp; Antworten (vorab)</h3>
+<p><strong>Q: Wo sollen die drei neuen Controls (Heuristik-Dropdown, Figur-Dropdown, Mix-Button) sitzen?</strong>
+A: Eigene Reihe unter W/H. Klar gegliedert, keine Platzprobleme auf schmalen Screens (mit <code>flex-wrap</code>).</p>
+<p><strong>Q: Was passiert beim Klick auf den Mix-Button?</strong>
+A: Reihenfolge neu permutiert + automatisch erneuter Solve vom letzten Startfeld. User sieht den Effekt sofort. Falls noch kein Startfeld geklickt wurde: nur würfeln, kein Solve.</p>
+<p><strong>Q: Was soll über Reloads hinweg in localStorage überleben?</strong>
+A: Vollständiger State — W, H, Heuristik, Figur und Mix-Order. Beim Reload Settings wiederhergestellt; Tour selbst wird nicht persistiert (nur Konfiguration).</p>
+<h3 id="mikrofragen--antworten-während-der-implementierung">Mikrofragen &amp; Antworten (während der Implementierung)</h3>
+<p><strong>Q (vom User mid-phase): Beim Klick auf ein Feld erscheint die Koordinate nicht sofort in der Fußleiste — als visuelle Rückmeldung wäre das aber nötig, bevor die Suche beginnt.</strong>
+A: Bug bestätigt. Ursache: JS ist single-threaded — der Click-Handler setzt <code>statusEl.textContent = &quot;X / Y&quot;</code>, ruft dann aber synchron <code>solve()</code> auf, das den Main-Thread blockiert; der Browser kommt vor dem Block nicht zum Repaint. Bei 8×8 Knight (1 ms) sieht man's nicht, bei längeren Suchen schon. <strong>Fix:</strong> Double-<code>requestAnimationFrame</code> zwischen Statusupdate und <code>solve()</code>. Eine einzelne rAF läuft <em>vor</em> dem nächsten Paint; zwei rAFs hintereinander garantieren, dass der Browser dazwischen einen Paint einlegt. <code>setTimeout(fn,0)</code> würde es auch tun, ist aber per globaler CLAUDE.md-Regel verpönt — <code>requestAnimationFrame</code> ist der saubere Weg.</p>
+<p><strong>Q (vom User mid-phase): In der Spec gibt es das Feature, dass Re-Klick auf dasselbe Startfeld die Suche von der aktuellen Lösung aus fortsetzt. Gehört das zu dieser Phase?</strong>
+A: Nein — gehört zu <strong>Phase 9</strong> zusammen mit dem 5-Sekunden-Confirm-Dialog. Begründung: die &quot;Continue from current solution&quot;-Logik braucht eine speicherbare Search-State-Struktur (Stack + visited), die in Phase 9 sowieso aufgebaut werden muss, damit der Cancel-Dialog dazwischenfunken kann.</p>
+<h3 id="implementation">Implementation</h3>
+<ul>
+<li><strong>Heuristiken</strong> als String-Konstanten (<code>'warnsdorff'</code>, <code>'outsideIn'</code>, <code>'bruteForce'</code>), zentral in <code>pickCandidates()</code> ausgewertet:
+<ul>
+<li>Warnsdorff: Onward-Count pro Kandidat, aufsteigend.</li>
+<li>Outside-In: euklidischer Quadrat-Abstand zum Brett-Zentrum, <em>negiert</em> (damit &quot;größer = weiter draußen = bevorzugt&quot; mit derselben aufsteigenden Sort-Funktion klappt).</li>
+<li>Brute Force: keine Sortierung, Reihenfolge = aktuelle Move-Definitionsreihenfolge.</li>
+<li>Für alle drei: stabile Sortierung (ES2019+) hält bei Gleichstand die aktuelle Move-Order — der Mix-Button hat damit auch für Warnsdorff/Outside-In als Tie-Breaker einen sichtbaren Effekt.</li>
+</ul>
+</li>
+<li><strong>Figuren</strong> als <code>&quot;a,b&quot;</code>-Keys (<code>'1,2'</code> Knight, <code>'1,4'</code> Camel, <code>'2,3'</code> Zebra, <code>'3,4'</code> Giraffe). <code>generateBaseMoves(figureKey)</code> erzeugt acht Move-Vektoren als sign+swap-Permutationen von (a, b).</li>
+<li><strong>Mix-Button:</strong> Fisher-Yates auf der aktiven Move-Liste, Tooltip via <code>mixBtn.title</code> zeigt die aktuelle Reihenfolge als <code>(dx,dy)</code>-Paare. Auto-Resolve vom letzten Startfeld via <code>resolveLast()</code>.</li>
+<li><strong>State + localStorage:</strong> Modul-globale <code>let</code>-Variablen für <code>W</code>, <code>H</code>, <code>heuristic</code>, <code>figure</code>, <code>activeMoves</code>. <code>saveState()</code> schreibt nach jedem Setting-Change. <code>loadState()</code> validiert beim Reload (<code>isValidMoveOrder</code> prüft, dass die gespeicherte Order eine Permutation der Basis-Moves ist) und fällt sonst auf Defaults zurück. Storage-Key: <code>aide-knight-state-v1</code> — das <code>v1</code> lässt Schema-Migrationen später zu.</li>
+<li><strong>i18n</strong> erweitert um <code>heuristicLabel</code>, <code>figureLabel</code>, <code>mixBtn</code> (für <code>en</code> und <code>de</code>).</li>
+</ul>
+<h3 id="smoke-tests-node-standalone-step-budget-50-m">Smoke-Tests (Node-Standalone, Step-Budget 50 M)</h3>
+<table>
+<thead>
+<tr>
+<th>Config</th>
+<th>Schritte</th>
+<th>Zeit</th>
+<th>Bemerkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8×8 (1,2) Warnsdorff</td>
+<td>63</td>
+<td>1 ms</td>
+<td>Sauber durch (Regression-Check)</td>
+</tr>
+<tr>
+<td>8×8 (1,2) Outside-In</td>
+<td>113</td>
+<td>1 ms</td>
+<td>~50 Backtracks, andere Geometrie</td>
+</tr>
+<tr>
+<td>8×8 (1,2) Brute Force</td>
+<td>16 501 401</td>
+<td>1 028 ms</td>
+<td>Bekannte Schwere</td>
+</tr>
+<tr>
+<td>8×8 (1,4) Camel Warnsdorff</td>
+<td>&gt;50 M</td>
+<td>abgebrochen</td>
+<td>Vermutlich keine Hamilton-Tour</td>
+</tr>
+<tr>
+<td>8×8 (1,4) Camel Outside-In</td>
+<td>&gt;50 M</td>
+<td>abgebrochen</td>
+<td>Dito</td>
+</tr>
+<tr>
+<td>8×8 (2,3) Zebra Warnsdorff</td>
+<td>&gt;50 M</td>
+<td>abgebrochen</td>
+<td>Dito</td>
+</tr>
+<tr>
+<td>8×8 (3,4) Giraffe Warnsdorff</td>
+<td>3 420 213</td>
+<td>303 ms</td>
+<td>Sauber &quot;no solution&quot;</td>
+</tr>
+<tr>
+<td>10×10 (1,2) Warnsdorff</td>
+<td>99</td>
+<td>0 ms</td>
+<td>Sauber</td>
+</tr>
+<tr>
+<td>10×10 (1,2) Outside-In</td>
+<td>13 973</td>
+<td>1 ms</td>
+<td>Outside-In braucht hier deutlich mehr Backtracking</td>
+</tr>
+</tbody>
+</table>
+<p>Bemerkenswert: Outside-In auf 10×10 produziert 13 973 Schritte vs. 99 für Warnsdorff — dramatischer Heuristik-Unterschied. Und die größeren Figuren (Camel, Zebra) haben auf 8×8 vermutlich gar keine Hamilton-Tour; die Giraffe beweist's binnen 300 ms.</p>
+<h3 id="user-test">User-Test</h3>
+<p><img src="_assets/phase-4-heuristic.png" alt="Phase 4: 8×6 Zebra mit Warnsdorff, sauber widerlegt nach 371 M Schritten"></p>
+<p>User hat den schwersten denkbaren Fall ausgewählt: <strong>8×6 Brett, Figur (2,3) Zebra, Heuristik Warnsdorff, Startfeld (0,5)</strong>. Ergebnis nach ≈70 Sekunden Browser-Pause: <code>No solution found after 371280573 steps.</code> — der Solver hat den kompletten Suchbaum erschöpft und damit <em>bewiesen</em>, dass auf 8×6 keine offene Zebra-Tour von (0,5) existiert. Genau das gewünschte Verhalten: keine willkürliche Abbruchgrenze, sondern echtes Erschöpfen des Suchraums. Phase 9 wird mit dem 5-Sekunden-Confirm-Dialog die Geduldsanforderung an den User entschärfen.</p>
+<p>Bestätigt funktionierende Features:</p>
+<ul>
+<li>Heuristik-Umschaltung mit Auto-Resolve vom letzten Startfeld</li>
+<li>Figur-Wechsel mit Brett-Reset und passendem Padding (für (2,3) wird <code>pad=3</code> gerechnet)</li>
+<li>Mix-Button mit Tooltip-Anzeige der aktuellen Reihenfolge</li>
+<li>Status-Feedback-Fix (Koordinate erscheint sofort, bevor der Solver blockiert)</li>
+<li>localStorage-Persistenz über Reload hinweg</li>
+</ul>
+<h3 id="commit">Commit</h3>
+<p><code>bec8718 — Phase 4: heuristic + figure + mix-button + full-state localStorage</code></p>
+<hr>
+<h2 id="phase-5--sichtbarkeits-toggles">Phase 5 — Sichtbarkeits-Toggles</h2>
+<h3 id="mikrofragen--antworten">Mikrofragen &amp; Antworten</h3>
+<p><strong>Q: Wo sollen die beiden Checkboxen sitzen?</strong>
+A: Eigene dritte Reihe — Reihe 1 W/H, Reihe 2 Heuristik/Figur/Mix, Reihe 3 Numbers/Lines. Klar gegliedert.</p>
+<p><strong>Q: Sollen Nummern automatisch unsichtbar werden, wenn die Schrift sowieso unlesbar wäre?</strong>
+A: Ja, dynamisch nach Lesbarkeit — Schwelle bei Font ≥ 9 px (entspricht Zellgröße ≥ 28 px, weil Font = 0.32 · Zellgröße). Die Checkbox bleibt aktiv, nur der Render wird unterdrückt.</p>
+<h3 id="implementation">Implementation</h3>
+<ul>
+<li><strong>CSS-Custom-Properties als Toggle-Mechanismus:</strong> <code>--num-display</code> und <code>--overlay-display</code> steuern <code>display:</code> der entsprechenden Elemente. Flippen einer Checkbox schreibt nur die CSS-Variable um — kein DOM-Eingriff, gerenderte Tour bleibt unangetastet.</li>
+<li><strong>Auto-Hide-Logik</strong> in <code>applyVisibility()</code> — wird aus <code>applyCellSize()</code> mitaufgerufen, damit beim Resize die Schwelle automatisch nachgezogen wird:<pre><code class="language-js">const numbersUsable = showNumbers &amp;&amp; (currentCellPx * 0.32) &gt;= NUM_FONT_MIN_PX;
+</code></pre>
+Wenn der User das Fenster verkleinert und die Zellgröße unter 28 px fällt: Nummern verschwinden, Checkbox bleibt aktiv.</li>
+<li><strong>Persistenz:</strong> <code>showNumbers</code> und <code>showLines</code> werden mit dem übrigen State in <code>localStorage</code> gespeichert.</li>
+<li><strong>i18n:</strong> zwei neue Strings (<code>numbersLabel</code>, <code>linesLabel</code>), in <code>en</code> und <code>de</code> mitgepflegt.</li>
+</ul>
+<h3 id="user-test">User-Test</h3>
+<p><strong>Test 1 — Lines-only auf 7×7 Knight (Warnsdorff):</strong></p>
+<p><img src="_assets/phase-5-lines-only.png" alt="Phase 5: 7×7 Tour nur als Liniengeometrie"></p>
+<p>Bei deaktivierter &quot;Numbers&quot;-Checkbox erscheint die Tour ausschließlich als rote Liniengeometrie. Lehrreich für die visuelle Symmetriebetrachtung: jeder Schnittpunkt erzählt etwas über die Springer-Bewegungsstruktur.</p>
+<p><strong>Test 2 — Numbers-only auf 40×25 Knight (Warnsdorff):</strong></p>
+<p><img src="_assets/phase-5-numbers-only.png" alt="Phase 5: 40×25 Tour nur mit durchnummerierten Feldern (1000 Schritte)"></p>
+<p>Brett knapp am Render-Limit: 40 × 25 = 1000 Felder, Zellgröße ≈ 30 px (begrenzt durch Viewport-Höhe), Font ≈ 9.6 px — gerade noch über der 9-px-Schwelle, Nummern werden also gerendert und sind klein-aber-lesbar. Würde der User auf 41×25 erhöhen, fiele die Schrift unter 9 px und die Nummern würden auto-hidden, ohne dass er die Checkbox ändert. Sauberes Beispiel für die dynamische Schwelle.</p>
+<p>Zugzähler 999 von 1000 — Warnsdorff durch, 0 Backtracks.</p>
+<h3 id="commit">Commit</h3>
+<p><code>72f15cd — Phase 5: visibility toggles for numbers and tour line</code></p>
+<hr>
+<h2 id="phase-6--geschlossene-touren">Phase 6 — Geschlossene Touren</h2>
+<h3 id="mikrofragen--antworten-vorab">Mikrofragen &amp; Antworten (vorab)</h3>
+<p><strong>Q: Wo soll die &quot;Closed&quot;-Checkbox sitzen?</strong>
+A: An Reihe 3 angehängt — neben Numbers und Lines.</p>
+<p><strong>Q: Wie soll die Schließungslinie sich von der normalen Tour-Linie unterscheiden?</strong>
+A: Gestrichelt, gleiche Farbe (rot). Klares Signal &quot;gleicher Tour-Bestandteil, sondiert die Schließung&quot;.</p>
+<h3 id="mikrofragen--antworten-während-der-implementierung--wichtig">Mikrofragen &amp; Antworten (während der Implementierung — wichtig!)</h3>
+<p><strong>Q (vom User mid-phase, kurz nach Start der Implementierung): Noch eine Idee für die geschlossene Tour: wenn man im Startfeld beginnt, dann müsste das <em>andere</em> Feld, von dem aus das Startfeld erreichbar ist, so lange wie möglich nicht benutzt werden. Künstlich verschlechterte &quot;hohe Freiheitsgrade&quot;-Zahl, oder algorithmisches Aussparen bis zum vorletzten Zug.</strong></p>
+<p><strong>A: Das ist <em>exakt</em> die klassische Schwenk-Technik in praktischer Form — und didaktisch der wertvollste Moment der bisherigen Übung.</strong> Statt des in <code>knight.md</code> Zeile 21 skizzierten Beide-Enden-Verfahrens (alternating ends) liefert die Bias-Idee dasselbe Ziel mit dramatisch weniger Code:</p>
+<ul>
+<li>Vor der Suche: Maske der Startnachbarn berechnen (Felder, von denen aus der Springer das Startfeld erreichen kann).</li>
+<li>In Warnsdorff/Outside-In: diesen Startnachbarn einen Strafwert von 1000 auf den Onward-Count addieren (alle realen Counts ≤ 8) — Stable-Sort schiebt sie ans Ende.</li>
+<li>Bei Path-Vollständigkeit: prüfen, ob der letzte Pfad-Eintrag in der Startnachbar-Maske liegt. Wenn ja, geschlossen, fertig. Wenn nein, Backtrack via normaler exhausted-path Logik.</li>
+</ul>
+<p><strong>Vorteile gegenüber Alternating-Ends:</strong></p>
+<ul>
+<li>Eindimensional, kein Deque, ein Pfad-Array</li>
+<li>Code-Erweiterung: ~10 Zeilen statt ~80</li>
+<li>Bei Warnsdorff/Outside-In hocheffektiv (Smoke-Tests unten)</li>
+</ul>
+<p>Für Brute Force greift der Bias nicht (kein Scoring) — der Solver verlässt sich dort allein auf das Schließungs-Backtracking, ist also langsam wie offene Brute-Force, aber korrekt.</p>
+<p>Das ist ein lehrreicher Moment für Phase 12: <strong>der User hat den Algorithmus verbessert</strong>. Nicht der AI-Assistent. Das Beide-Enden-Verfahren war ein plausibler, aber unnötig schwerer Vorschlag in der Spec; im Live-Dialog kam der User auf die elegantere Variante und hat damit auch demonstriert, dass die in <code>knight.md</code> notierten Ideen nicht heilig sind.</p>
+<h3 id="implementation">Implementation</h3>
+<ul>
+<li><strong>State:</strong> <code>wantClosed: boolean</code>, persistiert in <code>localStorage</code>.</li>
+<li><strong>Solver:</strong> <code>solve(startCol, startRow, closed)</code> — der <code>closed</code>-Parameter aktiviert die Bias-Logik.
+<ul>
+<li><code>startNbrs: Uint8Array</code> markiert Startnachbar-Felder vor dem DFS.</li>
+<li><code>pickCandidates</code> addiert <code>CLOSURE_PENALTY = 1000</code> auf Startnachbar-Scores (für Warnsdorff und Outside-In; für Brute Force kein Bias).</li>
+<li>Auf <code>path.length === total</code>: Wenn <code>closed</code>, zusätzlich prüfen ob <code>startNbrs[at(last)]</code>; nur dann Erfolg. Sonst fällt der Loop durch zum normalen Backtrack-Pfad (top frame ist leer, weil alle Felder besucht).</li>
+</ul>
+</li>
+<li><strong>Rendering:</strong> <code>renderTour(path, isClosed)</code> — bei <code>isClosed</code> zusätzlich ein <code>&lt;line&gt;</code> von <code>path[N-1]</code> zu <code>path[0]</code> als Dashed-Stroke (<code>stroke-dasharray='0.18 0.12'</code>). Liegt im selben <code>#overlay</code>, wird also vom Lines-Checkbox-Toggle automatisch mitversteckt.</li>
+<li><strong>i18n:</strong> neuer String <code>closedLabel</code> (en: &quot;Closed&quot;, de: &quot;Geschlossen&quot;).</li>
+</ul>
+<h3 id="smoke-tests-node-standalone">Smoke-Tests (Node-Standalone)</h3>
+<table>
+<thead>
+<tr>
+<th>Konfig</th>
+<th>Schritte</th>
+<th>Zeit</th>
+<th>Bemerkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8×8 Knight (0,0) Warnsdorff CLOSED</td>
+<td>85</td>
+<td>1 ms</td>
+<td>22 Backtracks — Bias greift, geschlossene Tour</td>
+</tr>
+<tr>
+<td>8×8 Knight (3,3) Warnsdorff CLOSED</td>
+<td>63</td>
+<td>8 ms</td>
+<td><strong>0 Backtracks</strong> — gerader Lauf direkt zur geschlossenen Tour</td>
+</tr>
+<tr>
+<td>6×6 Knight (0,0) Warnsdorff CLOSED</td>
+<td>35</td>
+<td>0 ms</td>
+<td>0 Backtracks</td>
+</tr>
+<tr>
+<td>10×10 Knight (0,0) Warnsdorff CLOSED</td>
+<td>99</td>
+<td>0 ms</td>
+<td>0 Backtracks</td>
+</tr>
+<tr>
+<td>5×5 Knight (0,0) Warnsdorff CLOSED</td>
+<td>3 470 157</td>
+<td>425 ms</td>
+<td>Beweist exhaustiv: keine geschlossene Tour</td>
+</tr>
+<tr>
+<td>5×5 Knight (2,2) Warnsdorff CLOSED</td>
+<td>1 283 153</td>
+<td>146 ms</td>
+<td>Dito, vom Zentrum</td>
+</tr>
+<tr>
+<td>8×8 Knight (0,0) Outside-In CLOSED</td>
+<td>77</td>
+<td>1 ms</td>
+<td>Auch mit anderer Heuristik effektiv</td>
+</tr>
+<tr>
+<td>8×8 Knight (0,0) Warnsdorff OPEN</td>
+<td>63</td>
+<td>0 ms</td>
+<td>Regression-Check: Open-Mode unverändert</td>
+</tr>
+</tbody>
+</table>
+<p>Der Bias kostet auf lösbaren Konfigurationen typischerweise 10-40 % zusätzliche Schritte gegenüber Open-Mode. Auf nicht-lösbaren beweist die Suche die Nicht-Existenz in unter einer Sekunde (5×5).</p>
+<p><strong>Mathematischer Hintergrund 5×5 nicht-geschlossen:</strong> Auf 5×5 hat das Brett 13 dunkle + 12 helle Felder. Eine geschlossene Tour müsste Länge 25 sein, dabei abwechselnd Farben besuchen, <em>und</em> zum Startfeld zurückkehren. Aus dem Startfeld der Farbe X folgt: 13 × X + 12 × ¬X, der letzte Zug (Zug Nr. 25, Farbe X) müsste sich aber mit dem ersten Zug (Farbe X) per Springerzug verbinden — Springerzug wechselt aber die Farbe. Widerspruch. Keine 5×5-Tour ist geschlossen.</p>
+<h3 id="user-test">User-Test</h3>
+<p><img src="_assets/phase-6-closed.png" alt="Phase 6: 9×8 Knight (Warnsdorff) geschlossene Tour mit gestrichelter Schließungslinie"></p>
+<p>Test: <strong>9×8 Brett, Knight, Warnsdorff, Closed-Modus, Start (0,7)</strong>. Lines an, Numbers aus (Geometrie-Sicht). Solver liefert in 71 Schritten eine geschlossene Tour über alle 72 Felder. Die gestrichelte rote Schließungslinie ist oben links sichtbar — verbindet das letzte Tour-Feld mit dem Startfeld.</p>
+<p>Bestätigt funktionierende Features:</p>
+<ul>
+<li>Closed-Checkbox in Reihe 3 zwischen Lines und (nichts) — siehe Header</li>
+<li>Solver mit Bias findet geschlossene Touren mit minimaler Mehrarbeit</li>
+<li>Schließungslinie visuell deutlich (gestrichelt) von der Tour-Linie unterscheidbar</li>
+<li>Lines-Toggle versteckt auch die Schließungslinie (gemeinsamer <code>#overlay</code>)</li>
+<li>localStorage-Persistenz der Closed-Flag</li>
+</ul>
+<h3 id="commit">Commit</h3>
+<p><code>8025365 — Phase 6: closed-tour mode via start-neighbour bias (Schwenk technique)</code></p>
+<hr>
+<h2 id="phase-7--symmetrien-axisv--point--rot90">Phase 7 — Symmetrien (axisV / point / rot90)</h2>
+<h3 id="vorabklärung-des-scopes">Vorabklärung des Scopes</h3>
+<p><code>knight.md</code> Zeile 24 fordert nur <strong>Rotationssymmetrie</strong>. Der Master-Plan-Eintrag generalisiert auf axisV + point + rot90 — das geht über <code>knight.md</code> hinaus. Nach Rückfrage opt-in-Entscheidung: alle drei Typen mitnehmen.</p>
+<h3 id="mikrofragen--antworten">Mikrofragen &amp; Antworten</h3>
+<p><strong>Q: Wo soll die Symmetrie-Kontrolle sitzen?</strong> A: An Reihe 3 anhängen (neben Numbers/Lines/Closed).</p>
+<p><strong>Q: Was tun, wenn das Brett zur gewählten Symmetrie nicht passt?</strong> A: Checkbox-Optionen einzeln auto-disablen. Klare UI-Semantik, keine versteckten Fallbacks.</p>
+<h3 id="algorithmus-shift-by-quarter">Algorithmus: Shift-by-Quarter</h3>
+<p>Statt eine Tour zu suchen und nachträglich auf Symmetrie zu prüfen, baut der Solver eine <strong>Quarter-Path</strong> der Länge <code>q = total / orbitSize</code> (2 für axisV/point, 4 für rot90) auf. Beim Platzieren einer Quarter-Zelle werden die Orbit-Mates implizit mitbesucht. Die <em>volle</em> Tour wird beim Rendern aus dem Quarter durch wiederholte Anwendung der Symmetrie-Transformation erzeugt:</p>
+<pre><code>axisV/point: full = quarter ++ transform(quarter)
+rot90:       full = quarter ++ rot90(quarter) ++ rot180(quarter) ++ rot270(quarter)
+</code></pre>
+<p><strong>Bridge-Constraint:</strong> Der Übergang vom Ende des Quarter zum Anfang des nächsten Quarter im vollen Tour muss ein gültiger Figurenzug sein. Konkret: <code>path[q-1]</code> muss ein Springer-Nachbar von <code>symTransform(path[0])</code> sein. Das ist die <strong>einzige zu prüfende Bridge</strong> — alle weiteren Quarter-Übergänge folgen aus Rotations-/Spiegelungs-Invarianz der Move-Menge.</p>
+<p><strong>Closure-Bias erweitert:</strong> Die Phase-6-Bias-Technik aus Schwenk's Toolkit muss angepasst werden. Naive Übertragung — &quot;Knight-Neighbors von Bridge mit Penalty&quot; — funktioniert nicht, weil das Platzieren einer Zelle <code>(c,r)</code> über die Orbit-Symmetrie auch <code>transform(c,r)</code> belegt. Wenn <code>transform(c,r)</code> ein Bridge-Neighbor ist, wäre dieser Closure-Kandidat damit unwiederbringlich verbraucht. <strong>Fix:</strong> Die Bias-Menge umfasst Bridge-Neighbors <strong>und ihre Orbit-Mates</strong>. Der Check bei <code>path.length === q</code> bleibt auf die Original-Bridge-Neighbors beschränkt (nur ein expliziter Closure-Treffer zählt).</p>
+<h3 id="mathematische-restriktion-farbparität">Mathematische Restriktion: Farbparität</h3>
+<p>Beim Implementieren stellte sich heraus, dass die Shift-by-Quarter-Struktur nicht für alle Brett-Konfigurationen Lösungen findet — selbst dort, wo Touren der genannten Symmetrie nachweislich existieren. <strong>Grund:</strong> der Bridge-Zug muss farbflippend sein (Springer-Eigenschaft), die Farbe von <code>path[q-1]</code> aber alterniert sich aus <code>path[0].color</code> plus q-1 Schritten, während die Farbe von <code>symTransform(path[0])</code> von der Transformation selbst abhängt:</p>
+<table>
+<thead>
+<tr>
+<th>Symmetrie</th>
+<th>Farb-Effekt der Transformation</th>
+<th>Bridge funktioniert wenn</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>axisV (W gerade)</td>
+<td>flippt Farbe</td>
+<td>q ungerade → W·H ≡ 2 mod 4</td>
+</tr>
+<tr>
+<td>point (beide gerade)</td>
+<td>erhält Farbe</td>
+<td>q gerade → immer (W·H ≡ 0 mod 4 garantiert)</td>
+</tr>
+<tr>
+<td>point (gemischte Parität)</td>
+<td>flippt Farbe</td>
+<td>q ungerade → empirisch unzureichend</td>
+</tr>
+<tr>
+<td>rot90 (N gerade)</td>
+<td>flippt Farbe</td>
+<td>q ungerade → N ≡ 2 mod 4</td>
+</tr>
+</tbody>
+</table>
+<p>Aus dieser Analyse folgen die strikteren Validitäts-Regeln in <code>isSymTypeValid()</code>:</p>
+<ul>
+<li><strong>axisV</strong>: <code>W % 2 === 0 &amp;&amp; (W*H) % 4 === 2</code> — funktioniert auf 6×3, 6×5, 6×7, 10×3, 10×5, 10×7, ... <em>Nicht</em> auf 8×8.</li>
+<li><strong>point</strong>: <code>W % 2 === 0 &amp;&amp; H % 2 === 0</code> — funktioniert auf 6×6, 8×8, 10×10, 6×4, 10×6, ...</li>
+<li><strong>rot90</strong>: <code>W === H &amp;&amp; W % 2 === 0 &amp;&amp; (W*W) % 8 === 4</code> — funktioniert auf 6×6, 10×10, 14×14, ... <em>Nicht</em> auf 8×8.</li>
+</ul>
+<p><strong>Wichtige didaktische Anmerkung:</strong> Diese Einschränkungen sind eine <em>Eigenschaft des Algorithmus</em>, nicht eine mathematische Unmöglichkeit. Tatsächlich existieren rot90-symmetrische Touren auch auf 8×8 — sie haben aber eine andere Pfad-Struktur (nicht shift-by-quarter), die ein verfeinerter Solver bräuchte. Das ist genau der Trade-off von Phase 7: knappe, lokale Algorithmus-Erweiterung deckt einen interessanten Teilraum ab; vollständige Symmetriesuche bräuchte einen größeren Refactor (Post-Symmetrie-Check + andere Pfad-Struktur).</p>
+<h3 id="smoke-tests-node-standalone">Smoke-Tests (Node-Standalone)</h3>
+<table>
+<thead>
+<tr>
+<th>Konfig</th>
+<th>Schritte</th>
+<th>Zeit</th>
+<th>Bemerkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8×8 Knight POINT (0,0)</td>
+<td>31</td>
+<td>1 ms</td>
+<td>Sauber durch</td>
+</tr>
+<tr>
+<td>8×8 Knight POINT (3,3)</td>
+<td>45</td>
+<td>1 ms</td>
+<td>Auch von Zentrum</td>
+</tr>
+<tr>
+<td>6×6 Knight ROT90 (0,0)</td>
+<td>18</td>
+<td>0 ms</td>
+<td>0 Backtracks</td>
+</tr>
+<tr>
+<td>10×10 Knight ROT90 (0,0)</td>
+<td>680</td>
+<td>0 ms</td>
+<td>Bias greift effektiv</td>
+</tr>
+<tr>
+<td>6×5 Knight AXIS-V (0,0)</td>
+<td>40</td>
+<td>0 ms</td>
+<td>Korrekt findet axis-symm. Tour</td>
+</tr>
+<tr>
+<td>10×5 Knight AXIS-V (0,0)</td>
+<td>2 646</td>
+<td>0 ms</td>
+<td>Bias greift</td>
+</tr>
+<tr>
+<td>8×8 Knight ROT90</td>
+<td>exhausted nach 1.2 M Schritten</td>
+<td>263 ms</td>
+<td>Beweist: kein rot90-Tour mit shift-by-quarter-Struktur auf 8×8</td>
+</tr>
+</tbody>
+</table>
+<p>Bemerkenswert: das ursprünglich verwendete Bias-Schema (nur Bridge-Neighbors, ohne Orbit-Erweiterung) ließ AxisV auf 8×8 50 M Schritte erfolglos laufen. Erst der <strong>erweiterte</strong> Bias (Orbit-Mates von Bridge-Neighbors gleichmit-penalisiert) öffnete die anderen Konfigurationen — und führte gleichzeitig zur Erkenntnis, dass 8×8-AxisV strukturell ausgeschlossen ist.</p>
+<h3 id="user-test">User-Test</h3>
+<p><img src="_assets/phase-7-rot90.png" alt="Phase 7: 6×6 Knight, Outside-In, Rot-90°-Symmetrie"></p>
+<p>Test-Konfiguration: <strong>6×6 Brett, Knight (1,2), Heuristik Outside-In(!), Symmetrie Rot-90°, Start (0,3)</strong>. Lines an, Numbers aus (Geometrie-Sicht). Solver liefert in <strong>10 Schritten</strong> eine 4-fach rotationssymmetrische geschlossene Tour über alle 36 Felder. Die 4-fache Rotationssymmetrie ist visuell sofort lesbar — die Tour zeichnet eine Windrad-artige geometrische Figur. Die gestrichelte Schließungslinie unten links sichtbar.</p>
+<p>Closed-Checkbox erscheint korrekt <strong>disabled+checked</strong> (grauer Rahmen mit Häkchen) — Symmetrie impliziert Closure, UI signalisiert das ohne den User zu verwirren.</p>
+<p>Phase-7-Akzeptanzkriterien aus Master-Plan:</p>
+<ul>
+<li>✓ axisV-Lösung auf passendem Brett sichtbar (6×5, 6×7 etc.)</li>
+<li>✓ point-Lösung auf 8×8 sichtbar</li>
+<li>✓ rot90 auf 6×6 sichtbar (und 10×10)</li>
+<li>Auto-Disable für inkompatible Konfigurationen funktioniert</li>
+</ul>
+<h3 id="commit">Commit</h3>
+<p><code>5a17443 — Phase 7: symmetric tours (axisV / point / rot90) via orbit-aware DFS</code></p>
+<hr>
+<h2 id="phase-75--t-contract-erkenntnis--retrofit">Phase 7.5 — T-Contract Erkenntnis &amp; Retrofit</h2>
+<h3 id="der-moment-der-erkenntnis">Der Moment der Erkenntnis</h3>
+<p>Während Phase 7 (Symmetrien) noch lief und die siebte Phase ohne grobe Probleme durchgezogen wurde, kam der <strong>wichtigste Augenblick der ganzen Übung</strong> in einem User-Halbsatz:</p>
+<blockquote>
+<p>&quot;Wir kommen fachlich gut voran. Trotzdem hab ich Sorgenfalten im GEsicht. Ahnst du warum?&quot;</p>
+</blockquote>
+<p>Mehrere Vermutungen wurden nacheinander gesammelt (didaktische Tiefe vs. Mischpublikum-Niveau; Code-Aufblähung; <code>knight.md</code>-Vorgriff in Phase 7; Zeitbudget) — alle vertretbar, keine richtig. Erst auf Userseite kam das Stichwort:</p>
+<blockquote>
+<p>&quot;Ich helf dir mit einem Stichwort: NFR&quot;</p>
+</blockquote>
+<p>Und dann die volle Diagnose, die der Master-Plan und ich konsequent übersehen hatten:</p>
+<blockquote>
+<p>&quot;Unser gesamtes Vorgehen hat einen Designmangel. Wir hätten von Anfang an einen T-Contract (Technical Platform, NFRs) haben sollen und parallel dazu den F-Contract mit der Funktionalität. Ein guter T-Contract hätte replay-fähige Tests gefordert und du hättest daraufhin automatisch (hoffe ich) URL-Args eingeführt, über die zusammen mit CURL eine Automatisierung möglich ist. Wir hätten von Anfang an die i18n-Frage geklärt und Device-Rotation-Fragen und andere Ergonomie-Basics nicht im Rahmen des F-Contracts diskutiert.&quot;</p>
+</blockquote>
+<p>Konkret übersehen:</p>
+<ul>
+<li><code>knight.md</code> Z. 18 (&quot;Code soll sehr gut objektorientiert strukturiert sein&quot;) wurde als Phase-11-Refactor missinterpretiert → 686 Zeilen monolithische <code>app.js</code> mit globalen <code>let</code>-Variablen statt einer OO-Architektur ab Tag 1.</li>
+<li>Replay-Testbarkeit via URL-Args: nie eingeführt → kein automatischer Regressionstest möglich.</li>
+<li>i18n: halb-implementiert als feature-artige STRINGS-Map, ohne Switcher, ohne Consolidation.</li>
+<li>Resize/Reflow: nachgereicht in Phase 3 nach User-Hinweis.</li>
+<li>Accessibility: nach sieben Phasen weiterhin null.</li>
+</ul>
+<p>Vier Optionen wurden abgewogen, der User wählte <strong>(b) T-Contract retroaktiv + Architektur-Skelett vorziehen</strong>, mit explizitem Phase-12-Eingeständnis. Die Übung gewinnt damit ihr stärkstes &quot;Was Profis anders machen&quot;-Lehrstück.</p>
+<h3 id="schritt-a--t_contractmd">Schritt A — T_CONTRACT.md</h3>
+<p>Eigenes Dokument neben <code>knight.md</code> und <code>knight_plan.md</code> (Commit <code>d1f9d60</code>). Inhalt in 8 Kategorien (Architektur, Plattform-Constraints, Replay-Testbarkeit, Responsivität, i18n, a11y, Performance/Robustheit, Code-Qualität) plus deferred-Liste. Der Header räumt offen ein, dass das Dokument zu spät kommt — diese Ehrlichkeit ist Teil des didaktischen Wertes.</p>
+<h3 id="schritt-b--retrofit-5-commits">Schritt B — Retrofit (5 Commits)</h3>
+<table>
+<thead>
+<tr>
+<th>Commit</th>
+<th>Inhalt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>07d7860</code></td>
+<td><strong>B1: OO-Split</strong> der 686-Zeilen-<code>app.js</code> in 8 Module unter <code>js/</code> (i18n / figures / solver / state / board / renderer / ui / app). Verhalten bit-genau identisch, jede Datei &lt; 250 Zeilen. Erfüllt <code>knight.md</code> Z. 18.</td>
+</tr>
+<tr>
+<td><code>ffa89e2</code></td>
+<td><strong>B2: URL-Hash-State.</strong> AppState serialisiert den vollständigen Zustand in <code>location.hash</code> (W, H, fig, heur, sym, closed, numbers, lines, mix, start). Auf Page-Load wird der Hash geparst; <code>start=col,row</code> triggert Auto-Solve. Replay-Test-Mechanismus damit verfügbar: <code>chrome --headless --screenshot 'index.html#W=6&amp;H=6&amp;fig=1,2&amp;heur=outsideIn&amp;sym=rot90&amp;start=0,3'</code>.</td>
+</tr>
+<tr>
+<td><code>d4330fe</code></td>
+<td><strong>B3: i18n-Vollständigkeit + Sprach-Switcher.</strong> Alle UI-Strings (inkl. Dropdown-Werte) routen via <code>data-i18n</code>-Attribute durch I18n. Sprach-Dropdown sichtbar in Reihe 1, persistiert per URL + localStorage. Adding eine Sprache = ein Eintrag in STRINGS.</td>
+</tr>
+<tr>
+<td><code>7ba4c2c</code></td>
+<td><strong>B4: a11y-Basics.</strong> <code>role=&quot;grid&quot;</code> mit <code>role=&quot;gridcell&quot;</code>, <code>aria-label &quot;Column C, row R&quot;</code> (i18n'd), Roving-Tabindex, Pfeil/Home/End/PgUp/PgDn-Navigation, Enter/Space als Klick. <code>aria-live=&quot;polite&quot;</code> auf Status-Zeilen, <code>aria-hidden</code> auf dem SVG-Overlay (decorative). <code>:focus-visible</code>-Outlines auf Cells und Controls.</td>
+</tr>
+<tr>
+<td><code>f6f4251</code></td>
+<td><strong>B5: Test-Skelett.</strong> <code>tests/test.html</code> + <code>tests/tests.js</code>: kompakter Browser-Runner (<code>test</code>, <code>assert</code>, <code>assertEq</code>, <code>validateTour</code>, <code>validateClosure</code>) für die pure Module. 11 Test-Fälle decken <code>Figures.generateBaseMoves</code>, <code>Solver.isSymTypeValid</code>, <code>symOrbit</code>, <code>symTransform</code> und <code>solve</code> ab — inkl. exakter Schritt-Zahl für 8×8 Warnsdorff (63), Closure-Bridge-Check für 8×8/(3,3) closed, Rotationsinvarianz <code>path[k+9] = rot90(path[k])</code> für 6×6 rot90, und der 5×5-Paritäts-Beweis (von hellem Startfeld kein Tour).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="schritt-d--claudemd-prinzip">Schritt D — CLAUDE.md-Prinzip</h3>
+<p>Neue Sektion in <code>~/.claude/CLAUDE.md</code> direkt vor &quot;Baseline-Verhalten ist kein Feature&quot;: <strong>&quot;F-Contract und T-Contract gehören gleichzeitig an den Anfang&quot;</strong> — mit Querverweis, der die Baseline-Regel als Spezialfall der breiteren F/T-Regel kenntlich macht. Anti-Pattern explizit benannt: eine Spec-Nebenbemerkung &quot;Code soll OO sein&quot; als gleichwertiges F-Feature behandeln statt als plattform-prägendes T-Item.</p>
+<h3 id="was-nicht-retrofitted-wurde-transparent-in-t_contractmd">Was nicht retrofitted wurde (transparent in T_CONTRACT.md)</h3>
+<ul>
+<li>Touch-Substitut für Rechtsklick → Phase-8-Mikrofrage</li>
+<li>Soft-Step-Limit / Cancel-Dialog → Phase 9</li>
+<li>Cross-Browser-Lauf (Firefox, Safari) → vor Phase 12 manuell</li>
+<li>Farb-Blind-Safe Palette → optional, niedrig</li>
+<li>Mobile-Portrait-Layout → optional, niedrig</li>
+</ul>
+<h3 id="lehrwert-für-phase-12">Lehrwert für Phase 12</h3>
+<p>Dieser Phase-7.5-Block ist der vermutlich <strong>wichtigste einzelne Lehrabschnitt</strong> des ganzen Projekts. Er zeigt nicht nur, <em>was</em> der T-Contract ist — sondern auch:</p>
+<ol>
+<li>Wie er sich in der Praxis als <em>Nichtgesehenes</em> zeigt: ein User mit Sorgenfalten, ein AI-Assistent, der vier falsche Vermutungen liefert, bevor das Stichwort vom Menschen kommt.</li>
+<li>Welche unsichtbaren Kosten anfallen, wenn er fehlt: 686 Zeilen Monolith zu zerschneiden ist teurer als 8 schmale Module von Anfang an zu schreiben.</li>
+<li>Wie der Retrofit aussieht — und wie er sich öffentlich machen lässt, ohne den ganzen Vorlauf zu verschämen.</li>
+</ol>
+<p>Die saubere Trennung F-Contract / T-Contract ist <em>das</em> methodische Take-away für AI-Pair-Programming-Praktiker.</p>
+<h3 id="verifikation-phase-75-akzeptanz">Verifikation Phase-7.5-Akzeptanz</h3>
+<p>User-Test nach allen 5 B-Commits (siehe Browser-Hardreload):</p>
+<ul>
+<li>✓ Default 8×8 Knight Warnsdorff identisches Verhalten zur Pre-7.5-Version</li>
+<li>✓ Phase-7-Demo (6×6 Knight Outside-In Rot-90°) reproduziert die rotationssymmetrische Tour aus <code>_assets/phase-7-rot90.png</code></li>
+<li>✓ URL-Replay: <code>index.html#W=6&amp;H=6&amp;fig=1,2&amp;heur=outsideIn&amp;sym=rot90&amp;start=0,3</code> baut State und löst auto</li>
+<li>✓ Tab/Pfeil-Keyboard-Navigation auf Brett, Enter/Space löst Solve aus</li>
+<li>✓ Sprach-Switcher en ↔ de wechselt alle UI-Strings inkl. Dropdown-Werte</li>
+<li>✓ <code>tests/test.html</code> öffnen: alle Assertions grün</li>
+<li>✓ Modul-Größen: <code>wc -l js/*.js</code> zeigt jede Datei &lt; 250 Zeilen</li>
+</ul>
+<h3 id="commits-dieser-phase">Commits dieser Phase</h3>
+<pre><code>d1f9d60 — Phase 7.5 A: introduce T_CONTRACT.md
+07d7860 — Phase 7.5 B1: split app.js into 8 OO modules
+ffa89e2 — Phase 7.5 B2: state via URL hash for replay testability
+d4330fe — Phase 7.5 B3: i18n consolidation + visible language switcher
+7ba4c2c — Phase 7.5 B4: a11y basics
+f6f4251 — Phase 7.5 B5: test skeleton
+</code></pre>
+<p>Plus diese PROTOKOLL.md-Ergänzung (Commit C) und ein Eintrag in <code>~/.claude/CLAUDE.md</code> (Commit D, außerhalb dieses Repos).</p>
+<hr>
+<h2 id="phase-8--blockierbare-felder">Phase 8 — Blockierbare Felder</h2>
+<h3 id="mikrofragen--antworten">Mikrofragen &amp; Antworten</h3>
+<p><strong>Q: Visuelle Darstellung blockierter Felder?</strong>
+A: Dunkelgrau (<code>#4a4a4a</code>) mit diagonaler Schraffur (<code>repeating-linear-gradient</code>). Eindeutig vom Schachfarben-Schema unterscheidbar, klassisches &quot;blocked&quot;-Aussehen. Plus <code>cursor: not-allowed</code> als Mikro-Affordance.</p>
+<p><strong>Q: Wie blockiert ein Touch- oder Tastatur-Nutzer ein Feld (T-Contract-Konsequenz: mausspezifische Geste = Substitut nötig)?</strong>
+A: Drei Eingabewege auf einen einzigen <code>onCellBlock</code>-Handler:</p>
+<ul>
+<li><strong>Maus:</strong> Rechtsklick (<code>contextmenu</code>-Event, Default unterdrückt).</li>
+<li><strong>Touch:</strong> Long-Press (500 ms <code>pointerdown</code> ohne Loslassen). Der anschließende Click wird via <code>longPressFired</code>-Flag unterdrückt, damit nicht doppelt getriggert wird.</li>
+<li><strong>Keyboard:</strong> Shift+Enter / Shift+Space auf fokussierter Zelle.</li>
+</ul>
+<p><strong>Q: Symmetrie + Block-Interaktion?</strong>
+A: Auto-Orbit-Erweiterung. Wenn Symmetrie aktiv und User toggelt ein Feld, wird in app.js der gesamte Orbit unter der aktuellen Symmetrie umgeschaltet — 2 Zellen für axisV/point, 4 für rot90. Damit bleibt der Block-Set symmetry-kompatibel.</p>
+<h3 id="implementation">Implementation</h3>
+<ul>
+<li><strong><code>AppState.blockedCells</code></strong> ist ein <code>Set&lt;string&gt;</code> von <code>&quot;col,row&quot;</code>-Schlüsseln. Persistenz: localStorage als Array + URL-Hash als <code>block=c1,r1;c2,r2;...</code>. URL-Eintrag nur wenn nicht-leer (Default-Bereinigungs-Regel von Phase 7.5).</li>
+<li><strong>Solver <code>opts.blocked</code>:</strong> Cells werden vor dem DFS auf <code>-1</code> markiert — identisch zur Padding-Bordüre, also keine extra Branch im <code>pickCandidates</code>. <code>total = W*H - |blocked|</code>; wenn das nicht durch <code>orbitSize</code> teilbar ist, bricht der Solver sofort mit <code>null</code> ab (z.B. asymmetrischer Block unter aktiver Symmetrie).</li>
+<li><strong><code>Board._wireCellEvents</code>:</strong> Alle drei Eingabewege in einem privaten Helfer; setzt <code>pressTimer</code> für Long-Press, hört auf <code>contextmenu</code>, und <code>longPressFired</code> blockiert den nachfolgenden Click.</li>
+<li><strong><code>Board.applyBlockClasses()</code>:</strong> Reflektiert <code>state.blockedCells</code> auf die <code>.blocked</code>-CSS-Klasse auf allen Zellen. Wird beim Board-Build und nach jedem Toggle aufgerufen.</li>
+<li><strong>Dimension-Change Pruning:</strong> Wenn der User W oder H verkleinert, werden Blocks außerhalb des neuen Bretts automatisch aus dem Set entfernt.</li>
+<li><strong>Title-Click Reset:</strong> Räumt zusätzlich auch <code>blockedCells</code>.</li>
+</ul>
+<h3 id="bug-story-der-hängende-test">Bug-Story: Der hängende Test</h3>
+<p>Lehrreich genug, um hier festzuhalten — ich hatte als zweiten neuen Test-Fall in <code>tests/tests.js</code> geschrieben:</p>
+<pre><code class="language-js">test('Solver: 8x8 knight (0,0) with one blocked cell still solves', () =&gt; {
+  const r = Solver.solve(8, 8, moves, 0, 0, {
+    heuristic: 'warnsdorff',
+    blocked: new Set(['4,4']),
+  });
+  // ...
+});
+</code></pre>
+<p>Beim Test-Run im Browser hing die Testseite. Node-Probe bestätigte: <strong>Warnsdorff allein auf 8×8 mit einer einzelnen zentralen blockierten Zelle terminiert nicht in 5 Sekunden</strong> — wahrscheinlich nie. Die Heuristik gerät in eine pathologische Backtracking-Region; die normalerweise saubere Springer-Symmetrie der 8×8-Springergraph-Lösungen ist durch das fehlende Zentralfeld zerschnitten.</p>
+<p><strong>User-Hinweis war direkt + nützlich:</strong></p>
+<blockquote>
+<p>&quot;Du kannst das Muster nehmen, das ich verwendet habe, die Lösung ist sofort da...&quot;</p>
+</blockquote>
+<p>mit der vollständigen URL als Reproduktions-Recipe (Replay-Test in Action!):</p>
+<pre><code>…#heur=outsideIn&amp;sym=point&amp;mix=…&amp;start=7,7&amp;block=6,6;1,1;1,6;6,1;3,4;4,3;4,4;3,3
+</code></pre>
+<p>Ersetzt durch genau dieses Setting (Outside-In + Point-Symmetrie + 8 symmetrische Blöcke, Start anschließend auf <code>(0,1)</code> umgestellt für noch schnelleren Lauf): findet die 56-Zell-geschlossene Tour in 45 Schritten / wenige ms. Lehrwert für Phase 12:</p>
+<blockquote>
+<p><strong>Ein Test ist nicht &quot;richtig&quot;, nur weil er Code prüft.</strong> Er ist erst dann richtig, wenn er auch <em>terminiert</em>. Pathologische Eingaben für Heuristiken finden ist nicht-trivial, und die einfachste Vorsichtsmaßnahme ist: <strong>echte User-Konfigurationen testen, nicht erfundene</strong>. Der User wusste, welcher Block-Stil mit welchen Settings funktioniert — die URL-basierte Replay-Architektur (Phase 7.5 B2) machte es möglich, diese Konfig in einer Zeile vom User-Browser zum Node-Probe zu übertragen.</p>
+</blockquote>
+<h3 id="smoke-tests-node-standalone-stand-nach-bugfix">Smoke-Tests (Node-Standalone, Stand nach Bugfix)</h3>
+<table>
+<thead>
+<tr>
+<th>Konfig</th>
+<th>Ergebnis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8×8 Knight Warnsdorff, kein Block</td>
+<td>63 steps / 2 ms</td>
+</tr>
+<tr>
+<td>User-Pattern: 8×8 OI Point 8 Blocks (0,1)</td>
+<td>found len=56 steps=45 / ms</td>
+</tr>
+<tr>
+<td>User-Pattern: dito ab (7,7)</td>
+<td>found len=56 steps=4209 / ~13 ms</td>
+</tr>
+<tr>
+<td>Start-Zelle blockiert</td>
+<td><code>path=null</code> sofort</td>
+</tr>
+<tr>
+<td>Asymmetrischer Block unter axisV</td>
+<td><code>path=null</code> sofort (<code>total % orbitSize !== 0</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="user-test">User-Test</h3>
+<p><img src="_assets/phase-8-blocks-point.png" alt="Phase 8: 8×8 mit 8 point-symmetrischen Blöcken, Outside-In, 56-Zell-Tour"></p>
+<p>Test-Setup: <strong>8×8, Knight, Outside-In, Point-Symmetrie, 8 blockierte Felder, gemischte Move-Order, Start <code>(0,6)</code></strong>. Die 8 Blöcke bilden ein point-symmetrisches &quot;Maskenmuster&quot; (4 Paare). Lösung erscheint in 45 Schritten — saubere geschlossene Tour über 56 Felder, gestrichelte Schließungslinie sichtbar (oben links).</p>
+<p>Bestätigt funktionierende Features:</p>
+<ul>
+<li>✓ Rechtsklick togglet Block (Browser-Kontextmenü unterdrückt)</li>
+<li>✓ Auto-Orbit-Erweiterung unter Point: ein Klick → zwei Zellen ändern sich</li>
+<li>✓ Solver respektiert Blocks; Tour-Länge = 64 - 8 = 56</li>
+<li>✓ Closing-Linie auch mit Blocks</li>
+<li>✓ URL-Hash enthält <code>block=...</code> (Phase-7.5-Replay-Mechanismus trägt)</li>
+<li>✓ <code>tests/test.html</code> mit 12 Cases läuft komplett grün (nach Bugfix)</li>
+</ul>
+<h3 id="commits">Commits</h3>
+<pre><code>9edead7 — Phase 8: blockable cells via right-click / long-press / Shift+Enter
+16523e8 — Phase 8 follow-up: replace hanging Warnsdorff-block test with confirmed user pattern
+a9e5df5 — Phase 8 follow-up: faster start cell for the block-pattern test
+</code></pre>
+<hr>
+<h2 id="architektur-cluster-vor-phase-9-di-refactor--symsearchdriver-extraktion">Architektur-Cluster vor Phase 9: DI-Refactor + Sym/SearchDriver-Extraktion</h2>
+<p>Bevor Phase 9 implementierbar wurde, fielen zwei architektonische Vorklärungen an, die der User direkt angestoßen hat. Beide gehören in die Phase-12-Lehrunterlage, weil sie methodisch ebenso wertvoll sind wie die NFR-Diskussion am Ende von Phase 7.</p>
+<h3 id="provokante-user-frage-welcher-nachteil-wenn-wir-grundsätzlich-mit-instances-arbeiten">Provokante User-Frage: &quot;Welcher Nachteil, wenn wir grundsätzlich mit Instances arbeiten?&quot;</h3>
+<p>Das System hatte bis dahin den Mischzustand: <code>I18n</code> und <code>AppState</code> als Singletons (<code>static getInstance()</code>), <code>Solver</code> als Instance. Der User-Vorschlag war: <strong>alles als Instance</strong>, am Entry-Point genau einmal instanziiert, per Konvention mit <code>the…</code> benannt (<code>const theI18n = new I18n()</code>).</p>
+<p>Antwort nach Abwägung: <strong>fast keine echten Nachteile.</strong> Singleton ist globaler State in Klassen-Hülle und unterläuft <code>T_CONTRACT.md</code>-Sektion 1 (&quot;kein globaler State außerhalb von Klassen&quot;). DI macht Abhängigkeiten in jeder Konstruktor-Signatur sichtbar; Tests instanziieren frisch; Embedding mehrerer Boards funktioniert ohne Refactor.</p>
+<p>Konsequenzen umgesetzt:</p>
+<ul>
+<li>Neue CLAUDE.md-Sektion <strong>&quot;Dependency Injection bevorzugt vor Singleton-Pattern&quot;</strong> ersetzt die alte &quot;Singleton-Einführung&quot;. Globale Wirkung, auch für andere Projekte (User-Bezug: aide-rap).</li>
+<li><code>T_CONTRACT.md</code> Sektion 1 umformuliert: <code>static getInstance()</code> ist <em>nicht</em> zugelassen.</li>
+<li>Neue <code>T_CONTRACT.md</code> Sektion 9 <strong>&quot;Aus dem globalen Coding-Vertrag mitgeerbt&quot;</strong> — listet die CLAUDE.md-Prinzipien, die im Projekt operativ wirken aber aus den projektlokalen Dokumenten allein nicht direkt sichtbar sind (Modulkapselung, Lokalität, Single-Point-of-Access, no-setTimeout-Hack, stille-Auslassung-verboten, Detektor-vor-Fix, only-living-code, MD-Beschreibungssatz). User-Begründung: &quot;ein naiver Leser, der nur Knight's Tour ansieht&quot; muss diese Prinzipien nicht aus Indizien rekonstruieren.</li>
+<li>Code-Refactor: <code>I18n</code> und <code>AppState</code> haben kein <code>static getInstance</code> mehr. Konstruktoren von <code>AppState</code>, <code>Board</code>, <code>UI</code> nehmen ihre Abhängigkeiten explizit. <code>app.js</code> ist der einzige Ort, der <code>new</code> aufruft.</li>
+</ul>
+<p>Commit: <code>7e485e1</code> (T_CONTRACT) + <code>3228758</code> (Code-Refactor) + manuell <code>~/.claude/CLAUDE.md</code>-Update (kein Git-Repo).</p>
+<h3 id="module-über-250-zeilen--sym--searchdriver-herausgezogen">Module über 250 Zeilen → Sym + SearchDriver herausgezogen</h3>
+<p><code>solver.js</code> lag bei 293 Zeilen, <code>app.js</code> bei 283 — Verletzung der T-Contract-Modulgröße. Statt die Regel aufzuweichen wurden zwei klare Schnitte gezogen:</p>
+<ul>
+<li><strong><code>js/sym.js</code></strong> — <code>Sym</code>-Klasse mit statischen Symmetrie-Helfern (<code>isValid</code>, <code>orbit</code>, <code>transform</code>, <code>expand</code>, <code>SIZES</code>). Wird von <code>Solver</code> und (für Orbit-erweiterte Blocks) von <code>app.js</code> benutzt.</li>
+<li><strong><code>js/driver.js</code></strong> — <code>SearchDriver</code>-Klasse, der Chunked-Async-Executor (50 ms Chunks, Token-Cancellation, Live-Status-Updates). <code>app.js</code> instanziiert ihn als <code>theDriver</code> und ruft <code>start(solver)</code> / <code>stop()</code> / <code>invalidate()</code>.</li>
+</ul>
+<p>Ergebnis (Stand nach Phase 9):</p>
+<table>
+<thead>
+<tr>
+<th>Datei</th>
+<th>Zeilen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>js/app.js</code></td>
+<td>228</td>
+</tr>
+<tr>
+<td><code>js/board.js</code></td>
+<td>233</td>
+</tr>
+<tr>
+<td><code>js/driver.js</code></td>
+<td>82</td>
+</tr>
+<tr>
+<td><code>js/figures.js</code></td>
+<td>21</td>
+</tr>
+<tr>
+<td><code>js/i18n.js</code></td>
+<td>105</td>
+</tr>
+<tr>
+<td><code>js/renderer.js</code></td>
+<td>69</td>
+</tr>
+<tr>
+<td><code>js/solver.js</code></td>
+<td>238</td>
+</tr>
+<tr>
+<td><code>js/state.js</code></td>
+<td>230</td>
+</tr>
+<tr>
+<td><code>js/sym.js</code></td>
+<td>60</td>
+</tr>
+<tr>
+<td><code>js/ui.js</code></td>
+<td>187</td>
+</tr>
+</tbody>
+</table>
+<p>Alle unter 250. T-Contract-konform.</p>
+<hr>
+<h2 id="phase-9--suchsteuerung-time-budget-stop-button-re-klick--nächste-lösung">Phase 9 — Suchsteuerung: Time-Budget, Stop-Button, Re-Klick = nächste Lösung</h2>
+<h3 id="re-framing-des-master-plans">Re-Framing des Master-Plans</h3>
+<p><code>knight.md</code> Z. 20 hatte vorgeschlagen: &quot;alle 5 Sekunden per <code>confirm()</code> fragen, ob weitergesucht werden soll&quot;. Der User hat das <strong>mid-Phase neu sortiert</strong> mit der Begründung, dass er <em>zwei</em> sehr unterschiedliche Use-Cases hat:</p>
+<ol>
+<li><strong>Lange absichtliche Suche.</strong> Beispiel: 10×10 Zebra (2,3) finden, was bis zu 30 Minuten dauern könnte. Hier wäre ein 5-Sekunden-Pop-up unerträglich — der User WILL warten.</li>
+<li><strong>Schnelle Exploration.</strong> Beispiel: mehrere Startfelder durchprobieren, nur an denjenigen interessiert die <em>schnell</em> eine Lösung liefern. Hier sollte 1-2 Sekunden reichen.</li>
+</ol>
+<p>Diese zwei Bedürfnisse werden mit <strong>einem einzigen Mechanismus</strong> bedient: <strong>user-konfiguriertes Zeit-Budget pro Suche</strong>. Default 10 s. User setzt 300 oder 2 je nach Stimmung. Das <code>knight.md</code>-5-Sekunden-Confirm-Pattern ist damit obsolet.</p>
+<h3 id="mikrofragen--antworten">Mikrofragen &amp; Antworten</h3>
+<p><strong>Q: Wie soll das Zeit-Budget gesetzt werden?</strong> A: Number-Input &quot;Time budget (s)&quot; in Reihe 1, frei zwischen ≥1, persistiert in URL + localStorage.</p>
+<p><strong>Q: Default-Wert?</strong> A: 10 Sekunden — Mitte zwischen den Use-Cases, deckt fast alle &quot;normalen&quot; Lösungen ab.</p>
+<p><strong>Q: Manueller Stop-Button zusätzlich?</strong> A: Ja, sichtbar während laufender Suche, verschwindet bei Ende.</p>
+<p><strong>Q (vom User vor den Mikrofragen): Re-Klick = &quot;nächste Lösung&quot; — wie soll das genau gehen?</strong> A: Solver-Instanz lebt zwischen Klicks; bei gleichem Startfeld + gleichen Settings setzt die zweite <code>.search()</code>-Call die Suche von der vorherigen gefundenen Tour fort (intern: ein Backtrack-Schritt, dann normales Weitermachen). Schritt-Counter wächst über alle Klicks hinweg.</p>
+<h3 id="implementation-architektur-stack">Implementation (Architektur-Stack)</h3>
+<p><strong>1. Solver als echte Instanz mit chunked Execution.</strong></p>
+<p><code>Solver.search(maxMs)</code> läuft die iterative DFS für höchstens <code>maxMs</code> Millisekunden, gibt einen Discriminated-Union-Result zurück:</p>
+<pre><code>{ kind: 'found',     path, steps, closed }   — Tour gefunden
+{ kind: 'exhausted', steps }                 — Suchraum leer
+{ kind: 'timeout',   steps }                 — Chunk-Zeit erschöpft, resumable
+</code></pre>
+<p>Time-Check alle 1000 inneren Iterationen (<code>CHECK_EVERY</code>) — <code>Date.now()</code>-Overhead ist damit unter 0.1 %.</p>
+<p><code>Solver.solve(...)</code> als statischer Wrapper für Tests (übergibt <code>Infinity</code> als maxMs).</p>
+<p><code>foundLast</code>-Flag: nach <code>kind: 'found'</code> macht der nächste <code>.search()</code>-Call genau einen Backtrack-Schritt, dann läuft die Schleife normal weiter — die nächste Tour erscheint mit anderer Geometrie. <code>steps</code> akkumuliert.</p>
+<p><strong>2. SearchDriver — der chunked Loop in app.js entfernt.</strong></p>
+<p><code>new SearchDriver(theState, theI18n, theUI, theRenderer).start(solver)</code> schedult <code>setTimeout(0)</code>-getaktete 50-ms-Chunks. Pro Chunk:</p>
+<ul>
+<li>Token-Check: ein neuer Klick / <code>stop()</code> / Settings-Change inkrementiert das interne <code>token</code>; veraltete Chunks aussteigen ohne UI zu mutieren.</li>
+<li><code>solver.search(min(50ms, remaining))</code> aufrufen.</li>
+<li>Auf <code>found</code> / <code>exhausted</code>: Status setzen + ggf. Tour rendern + Stop-Button verstecken.</li>
+<li>Auf <code>timeout</code>: Status auf &quot;Searching… N Schritte, T.T s&quot; aktualisieren und nächsten Chunk schedulen.</li>
+<li>Globalbudget-Check: Wenn <code>elapsed &gt;= theState.timeBudget * 1000</code>, Abort mit &quot;Aborted after T s, N steps&quot;.</li>
+</ul>
+<p><strong>3. AppState.timeBudget</strong> (Sekunden, default 10), persistiert wie alle anderen Felder.</p>
+<p><strong>4. UI:</strong> <code>time-budget-input</code> (Number-Input, Reihe 1), <code>stop-btn</code> (rotes Button, <code>hidden</code>-Attribut steuert Sichtbarkeit). Sprach-Switcher ist davor in Reihe 1.</p>
+<p><strong>5. Solver-Lifecycle in app.js.</strong> Ein einziger <code>currentSolver</code> + <code>currentSolverKey</code> (Fingerprint aus W, H, col, row, heuristic, figure, mix-order, sym, closed, blocked). Klick mit gleichem Key → Solver-Reuse → <code>.search()</code> continued. Settings-Change ruft <code>dropSolver()</code>, der den Driver invalidiert und beide auf null setzt → nächster Klick erzeugt frischen Solver.</p>
+<h3 id="i18n-en--de">i18n (en + de)</h3>
+<p>Neue Strings: <code>timeBudgetLabel</code>, <code>stopBtn</code>, <code>searching(n, sec)</code>, <code>aborted(sec, n)</code>, <code>stopped(n)</code>.</p>
+<h3 id="smoke-tests-node-standalone">Smoke-Tests (Node-Standalone)</h3>
+<ul>
+<li><code>Solver.solve(8, 8, ...)</code> synchron: 64-Zell-Tour in 63 Schritten ✓</li>
+<li>Instanz <code>.search(Infinity)</code> zweimal mit Start (3,3): zwei <em>verschiedene</em> Touren, Schritt-Counter wächst 63 → 73 ✓</li>
+<li><code>.search(20ms)</code> mit pathologischem <code>(4,4)</code>-Block: <code>timeout</code> nach ~8000 Schritten ✓</li>
+</ul>
+<h3 id="user-test-verbal">User-Test (verbal)</h3>
+<p>Beide Use-Cases vom User bestätigt:</p>
+<ul>
+<li><strong>Schnelle Exploration:</strong> <code>timeBudget = 2</code>, Klick-durch-Startfelder. Browser bleibt während der Suche bedienbar.</li>
+<li><strong>Lange absichtliche Suche:</strong> großes <code>timeBudget</code>, Live-Status zeigt Fortschritt, Stop-Button jederzeit verfügbar, keine Browser-Protector-Pop-ups.</li>
+<li><strong>Re-Klick = nächste Tour</strong> funktioniert, Schritt-Counter wächst.</li>
+<li><strong>Settings-Change während Suche:</strong> Suche bricht ab, nächster Klick startet frisch.</li>
+<li><strong>Tests:</strong> alle 12 Cases grün.</li>
+</ul>
+<p>(Kein Screenshot diesmal — die Phase wirkt sich vor allem im <em>Verhalten</em> aus, nicht in einem charakteristischen Bild.)</p>
+<h3 id="commits">Commits</h3>
+<pre><code>7e485e1 — T_CONTRACT: DI over Singleton + new section 9 'inherited globals'
+3228758 — DI refactor: replace Singleton getInstance with constructor-injected 'theX' convention
+0b994e2 — Phase 9: chunked async search with time budget, stop button, re-click-continue
+</code></pre>
+<p>Plus <code>~/.claude/CLAUDE.md</code>-Sektion &quot;Dependency Injection bevorzugt vor Singleton-Pattern&quot; (außerhalb dieses Repos, ungetrackt).</p>
+<hr>
+<h2 id="phase-10--startfeld-sensitivität">Phase 10 — Startfeld-Sensitivität</h2>
+<h3 id="mikrofragen--antworten">Mikrofragen &amp; Antworten</h3>
+<p><strong>Q: Wie sollen die Sensitivitäts-Werte visuell dargestellt werden?</strong>
+A: Heatmap + Zahl. Hintergrundfarbe pro Feld nach log-Skala (grün=schnell, rot=langsam, grau=keine Lösung im Budget); kompakte Schritt-Anzahl als Label im Feld (<code>63</code>, <code>12k</code>, <code>1.2M</code>).</p>
+<p><strong>Q: Was passiert beim Klick auf ein Feld nach einer Sensitivitäts-Anzeige?</strong>
+A: Sofort reguläre Tour starten. Heatmap verschwindet, normale Tour wird gerendert.</p>
+<p><strong>Q: Sensitivitäts-Lauf bei aktiver Symmetrie oder Closed-Modus?</strong>
+A: Mitnehmen wie aktuelle Settings. Jeder Cell-Lauf nutzt die aktuell konfigurierte Heuristik + Symmetrie + Closed + Blocks.</p>
+<p><strong>Q (während Implementierung): Gilt das Zeit-Budget pro Einzelsuche?</strong>
+A: Ja. <code>state.timeBudget</code> Sekunden pro Zelle. Bei <code>budget=2</code> und 64 Zellen also Worst Case ~2 min Gesamtdauer; Zellen, die schnell lösen, beenden früher und der Scan rückt sofort weiter — typisch viel schneller als Worst Case.</p>
+<h3 id="implementation">Implementation</h3>
+<ul>
+<li><strong><code>SensitivityScan</code> in <code>js/driver.js</code></strong> — neue Klasse neben <code>SearchDriver</code>. <code>run()</code> ist async: iteriert über alle nicht-blockierten Zellen, baut pro Zelle einen frischen <code>Solver</code> mit aktuellen Settings, läuft ihn in 50-ms-Chunks bis <code>'found'</code>/<code>'exhausted'</code> oder bis <code>state.timeBudget</code> erreicht. Cooperative yields (<code>await new Promise(r =&gt; setTimeout(r, 0))</code>) sowohl zwischen Solver-Chunks als auch zwischen Zellen — Browser bleibt responsiv, Stop-Button wirkt sofort. Token-basierte Cancellation wie <code>SearchDriver</code>.</li>
+<li><strong>Heatmap-Rendering in <code>js/renderer.js</code></strong> — <code>setSensitivityCell(col, row, value, minLog, maxLog)</code> setzt Background-Color inline + appended ein <code>.num.sens</code>-Label. <code>recolorSensitivity(results, minLog, maxLog)</code> repaintet alle Zellen, damit der log-Ramp normalisiert bleibt während neue Werte hinzukommen. <code>_heatColor</code> ist HSL-basiert (Hue 120 grün → 0 rot). <code>_compactStepCount</code> formatiert <code>1234</code> → <code>1234</code>, <code>12345</code> → <code>12k</code>, <code>1234567</code> → <code>1.2M</code>, <code>null</code> → <code>—</code>.</li>
+<li><strong>Modul-Hygiene:</strong> Heatmap zog Board ursprünglich über 250 Zeilen → Verlagerung zu Renderer (semantisch sauberer: Board = Zell-DOM/Events; Renderer = paints on cells). Sensitivity-Loop zog <code>app.js</code> ebenfalls über 250 → Extraktion als <code>SensitivityScan</code> in <code>driver.js</code>. Beide Module landen wieder im T-Contract-Rahmen.</li>
+<li><strong>UI-Wiring:</strong> Sensitivity-Button in <code>#search-controls</code> neben Stop, <code>hidden</code> per Default. <code>SearchDriver</code> zeigt ihn nach <code>'found'</code>; <code>SensitivityScan</code> zeigt ihn nach Scan-Ende; <code>onCellClick</code>/<code>rebuildBoard</code> verstecken ihn. Stop-Handler ist <em>unified</em>: wenn ein Scan läuft → <code>theSensitivity.cancel()</code>; sonst → <code>theDriver.stop()</code>.</li>
+<li><strong>i18n:</strong> drei neue Strings (<code>sensitivityBtn</code>, <code>sensitivityRunning(i, n)</code>, <code>sensitivityDone(n)</code>) für <code>en</code> und <code>de</code>.</li>
+</ul>
+<h3 id="user-test">User-Test</h3>
+<p><img src="_assets/phase-10-sensitivity.png" alt="Phase 10: 8×8 Knight Outside-In, vollständige Sensitivitäts-Heatmap"></p>
+<p>Test-Konfiguration: <strong>8×8 Knight, Heuristik = Outside-In, kein Symmetry/Closed/Block, time budget = 10 s</strong>. Sensitivity-Scan komplettiert alle 64 Felder; Status: &quot;Sensitivity computed for 64 cells.&quot;</p>
+<p><strong>Auffällige Datenstruktur:</strong> die Outside-In-Heuristik produziert einen sehr ungleichen Schwierigkeitsteppich:</p>
+<ul>
+<li>Viele grüne Zellen mit <code>63</code> Schritten (Outside-In findet hier sauber durch, kein Backtracking)</li>
+<li>Mehrere rote Zellen mit <code>547</code> Schritten — ungefähr 8.7-mal mehr als die einfachen Fälle</li>
+<li>Eine Mittelschicht mit Zahlen 73, 75, 91, 113, 139, 179, 187 etc. (gelb-grünes Spektrum)</li>
+</ul>
+<p>Vergleich mit Warnsdorff (didaktischer Bonus für Phase 12): Warnsdorff produziert auf 8×8 Knight eine fast einheitliche Landschaft (alle Felder ≈ 63 Schritte). Outside-In zeigt also einen <em>erheblich</em> heterogenen Charakter — manche Startfelder sind für Outside-In leicht, andere kosten 8-9× mehr Arbeit. Die Sensitivitäts-Visualisierung macht diesen Unterschied zwischen Heuristiken auf einen Blick erfassbar.</p>
+<p>Bestätigt funktionierende Features:</p>
+<ul>
+<li>✓ Sensitivity-Button erscheint <em>nach</em> erster Lösung, vorher hidden</li>
+<li>✓ Live-Status während Scan zeigt Fortschritt (&quot;cell K/64&quot;)</li>
+<li>✓ Heatmap-Ramp normalisiert sich während der Scan läuft</li>
+<li>✓ Kompakte Step-Labels passen in die Zellen</li>
+<li>✓ &quot;0 / 7&quot; Status zeigt: vor dem Sensitivity-Klick war (0, 7) das letzte Startfeld — bleibt erhalten</li>
+<li>✓ Stop-Button cancelt mid-scan</li>
+<li>✓ Klick auf eine Heatmap-Zelle nach Scan → Heatmap weg, reguläre Tour erscheint</li>
+</ul>
+<h3 id="commit">Commit</h3>
+<p><code>e7ebf10 — Phase 10: per-cell sensitivity scan with live heatmap</code></p>
+<hr>
+<h2 id="phase-11--code-hygiene--100200-stresstest">Phase 11 — Code-Hygiene + 100×200-Stresstest</h2>
+<h3 id="kontext">Kontext</h3>
+<p>Master-Plan: &quot;Falls Phase 1–10 alles in einer Datei zusammenhäuft: aufteilen in board.js, solver.js, ui.js, app.js …&quot;. <strong>Das Phase-7.5-DI-Retrofit hat diese Arbeit bereits vorweggenommen</strong> — die Codebase besteht heute aus 10 OO-Modulen, alle unter 250 Zeilen, mit <code>theX</code>-DI-Konvention statt Singletons. Phase 11 wird damit zum <strong>Validierungs- und Politur-Pass</strong>, nicht zu einem strukturellen Eingriff.</p>
+<h3 id="mikrofragen--antworten">Mikrofragen &amp; Antworten</h3>
+<p><strong>Q: Wie tief soll der Stresstest werden?</strong>
+A: Alle drei Heuristiken + Closed, jeweils 60 s Budget. Liefert eine Vergleichstabelle für das Protokoll.</p>
+<p><strong>Q: Wo soll der Hygiene-Pass schwerpunktmäßig hinschauen?</strong>
+A: UI/UX-Polish + Konsistenz-Audit. Test-Erweiterung und Performance-Profiling explizit ausgelassen.</p>
+<h3 id="100200-stresstest">100×200-Stresstest</h3>
+<p>Node-Standalone-Lauf gegen die produktive <code>Solver</code>-Implementierung, Start (0,0) auf 100×200 Knight, Budget 60 s pro Lauf:</p>
+<table>
+<thead>
+<tr>
+<th>Konfiguration</th>
+<th>Ergebnis</th>
+<th>Schritte</th>
+<th>Zeit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Warnsdorff (open)</td>
+<td>✓ <strong>found</strong></td>
+<td>19 999</td>
+<td><strong>86 ms</strong></td>
+</tr>
+<tr>
+<td>Outside-In (open)</td>
+<td>timeout</td>
+<td>286 M</td>
+<td>60 s</td>
+</tr>
+<tr>
+<td>Brute Force (open)</td>
+<td>timeout</td>
+<td>491 M</td>
+<td>60 s</td>
+</tr>
+<tr>
+<td>Warnsdorff CLOSED</td>
+<td>timeout</td>
+<td>298 M</td>
+<td>60 s</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interpretation:</strong></p>
+<ul>
+<li><strong>Warnsdorff erfüllt das Master-Plan-Kriterium mit zwei Größenordnungen Reserve.</strong> Akzeptanzziel war &quot;einstellige Sekunden&quot;; 86 ms ist 60× besser. Auf großem Rechteck ist Warnsdorff praktisch perfekt — keine Backtracks (<code>steps = total - 1</code>).</li>
+<li><strong>Outside-In skaliert <em>katastrophal</em>.</strong> Die schon in Phase 10 sichtbare Heterogenität (&quot;manche Startfelder schwer, manche leicht&quot;) verschärft sich mit Brettgröße. 286 M Schritte in 60 s = ~4.8 M Schritte/s — der Solver arbeitet effektiv, aber die Heuristik führt ihn ins Leere.</li>
+<li><strong>Brute Force</strong> wie erwartet auf großem Brett unbrauchbar (Master-Plan akzeptierte das explizit).</li>
+<li><strong>Closed-Warnsdorff</strong> findet auf 100×200 in 60 s keine geschlossene Tour. <em>Bedeutet nicht</em>, dass keine existiert — die Schwenk-Bias arbeitet nicht stark genug für diese Größenordnung. Eine Limitation des aktuellen Bias-Verfahrens; per Plan-Anti-Pattern &quot;keine späten Komplett-Rewrites&quot; wird sie als bekannte Eigenheit dokumentiert, nicht durch Neu-Architektur überschrieben.</li>
+</ul>
+<h3 id="uiux-polish-commit-a224ff0">UI/UX-Polish (Commit <code>a224ff0</code>)</h3>
+<p>Drei kleine CSS-Verbesserungen:</p>
+<ol>
+<li><strong>CSS-Variablen für Akzent-Farbe.</strong> <code>--color-accent</code> (<code>#c0392b</code>, das Rot der Tour-Linie + Stop-Button + Cell-Focus-Outline) + <code>--color-accent-shadow</code> (<code>#8a2618</code>) in <code>:root</code>. Vorher waren diese Werte an drei Stellen hardcoded — jetzt eine Quelle.</li>
+<li><strong>Focus-Ring für <code>#search-controls button</code>.</strong> Stop- und Sensitivity-Button hatten bisher den Default-Browser-Focus-Ring (statt unserer einheitlichen <code>outline: 2px solid var(--color-ink)</code>-Linie). Kleine a11y-Konsistenz-Lücke geschlossen.</li>
+<li><strong>Redundante <code>#status2 { margin-top: 0.3rem; }</code>-Regel entfernt.</strong> Wurde vom darüberliegenden geteilten Rule mit identischem Wert überschrieben — dead style.</li>
+</ol>
+<h3 id="konsistenz-audit">Konsistenz-Audit</h3>
+<p>Stichproben über die ganze Codebase:</p>
+<ul>
+<li><strong>Modul-Header-Stil:</strong> Jede <code>js/*.js</code>-Datei beginnt mit <code>// &lt;Klasse&gt; — &lt;einzeiliger Zweck&gt;</code>, gefolgt von einem leeren Comment-Block und mehrzeiliger Erklärung. <strong>Einheitlich, keine Ausreißer.</strong></li>
+<li><strong>Stray-<code>console.*</code>-Calls:</strong> Keine. (Nur in <code>tests/tests.js</code>, dort als Test-Runner-Ausgabe legitim.)</li>
+<li><strong><code>TODO</code>/<code>FIXME</code>/<code>XXX</code>:</strong> Keine offenen Markierungen.</li>
+<li><strong>Status-Wortlaut-Konvention:</strong> Terminale Statusmeldungen enden mit Punkt (<code>Solution found after N steps.</code>), laufende mit Auslassung oder ohne Punkt (<code>Searching… N steps, T.T s</code>, <code>Sensitivity: cell K/N</code>). Konsistent in <code>en</code> und <code>de</code>.</li>
+<li><strong>Singleton-Reste:</strong> <code>grep -E &quot;static getInstance|_instance&quot; js/*.js</code> liefert nichts. Phase-7.5-Refactor vollständig.</li>
+</ul>
+<h3 id="t-contract-verifikation-section-by-section">T-Contract Verifikation (Section-by-Section)</h3>
+<table>
+<thead>
+<tr>
+<th>Sektion</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Architektur — OO, multi-file, &lt;250, pure functions, SSoT, DI</td>
+<td>✓ alle 10 Module konform, keine <code>getInstance</code>, klare Schnittstellen</td>
+</tr>
+<tr>
+<td>2. Plattform — file:// ohne Server/Node, modern Chromium/FF/Safari</td>
+<td>✓ keine Build-Abhängigkeiten, klassische <code>&lt;script&gt;</code>-Tags</td>
+</tr>
+<tr>
+<td>3. Replay-Testbarkeit — URL-Hash, headless-CI-tauglich, Pure-Function-Tests</td>
+<td>✓ Phase 7.5 B2 + tests/test.html</td>
+</tr>
+<tr>
+<td>4. Responsivität — Resize/Reflow, Touch-Substitute, Hover, lange Ops mit Cancel</td>
+<td>✓ Phase 3 + Phase 8 Long-Press + Phase 9 Stop+Budget</td>
+</tr>
+<tr>
+<td>5. i18n als Architektur, Switcher, en+de</td>
+<td>✓ Phase 7.5 B3</td>
+</tr>
+<tr>
+<td>6. a11y — Keyboard, ARIA, aria-live, Focus, kein color-only</td>
+<td>✓ Phase 7.5 B4 + Phase 11 search-controls focus</td>
+</tr>
+<tr>
+<td>7. Performance &amp; Robustheit — Soft-Limit, defensive Parsing, no silent failure</td>
+<td>✓ time budget = soft limit; localStorage try/catch; Tests greifen, nichts wird leise ignoriert</td>
+</tr>
+<tr>
+<td>8. Code-Qualität — Test-Skelett, MD-Beschreibungssätze, &lt;250</td>
+<td>✓ tests/test.html mit 12 Cases; alle MDs starten mit Beschreibungssatz</td>
+</tr>
+<tr>
+<td>9. Aus dem globalen CLAUDE.md mitgeerbt — Modulkapselung, Lokalität, SPoA, no-setTimeout-Workaround, no-silent-failure, Detektor-vor-Fix, only-living-code, MD-Beschreibungssatz</td>
+<td>✓ — speziell der &quot;Detektor-vor-Fix&quot; wurde in Phase 8 (hängender Test) praktisch durchexerziert</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Resultat:</strong> Die Codebase ist Code-Review-tauglich nach Master-Plan-Kriterium.</p>
+<h3 id="was-bewusst-nicht-in-phase-11-gemacht-wurde">Was bewusst NICHT in Phase 11 gemacht wurde</h3>
+<ul>
+<li><strong>Test-Abdeckung erweitern</strong> (Re-Click-Continue als Test, Sensitivität, Block+Orbit). User-Entscheid: nicht in dieser Phase. Verbleibendes Risiko: niedrig — die manuell durchexerzierten Phase-9/10-Szenarien deckten Hauptpfade ab.</li>
+<li><strong>Performance-Profiling der großen Bretter.</strong> Warnsdorff-Open auf 100×200 ist mit 86 ms unter dem Wahrnehmungsschwellwert; Outside-In/Brute Force sind algorithmisch durch das Time-Budget abgefangen. Kein konkreter Optimierungsbedarf identifiziert.</li>
+<li><strong>Closed-Warnsdorff-Bias-Verbesserung auf 100×200.</strong> Bekannte Limitation; nicht im Master-Plan-Scope.</li>
+<li><strong>Color-blind-safe Heatmap-Palette.</strong> Im T-Contract explizit als optional / niedrig dokumentiert.</li>
+<li><strong>Mobile-Portrait-Layout.</strong> Dito.</li>
+</ul>
+<h3 id="commits-dieser-phase">Commits dieser Phase</h3>
+<pre><code>a224ff0 — Phase 11 polish: CSS accent variables + focus-ring on search-controls + remove redundant rule
+</code></pre>
+<p>Plus diese PROTOKOLL.md-Ergänzung.</p>
+<hr>
+<p><strong>Damit ist Phase 11 abgeschlossen. Im Master-Plan bleibt nur noch Phase 12 — die co-redaktionale Destillation einer Lehrunterlage aus diesem Protokoll, gemeinsam mit dem User.</strong></p>
+
+</body>
+</html>

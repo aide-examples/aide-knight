@@ -10,10 +10,15 @@
 // of the tour overlay.
 
 class Renderer {
+  // Bind to a Board instance; we read its cells and overlay element directly.
+  // No DOM is created at construction — that happens in render() per tour.
   constructor(board) {
     this.board = board;
   }
 
+  // Wipe the tour visuals: remove every .num label from cells and empty the
+  // SVG overlay (polyline + optional closing line). Leaves the heatmap (if
+  // any) untouched — that's clearSensitivity's job.
   clear() {
     for (const cell of this.board.cellByIdx) {
       if (!cell) continue;
@@ -26,6 +31,9 @@ class Renderer {
     }
   }
 
+  // Draw a tour onto the board: a step-number label inside each visited cell
+  // plus a single SVG polyline connecting their centres. For closed tours we
+  // add a dashed segment from the last cell back to the first.
   render(path, isClosed) {
     const W = this.board.W, H = this.board.H;
 
@@ -109,6 +117,9 @@ class Renderer {
     }
   }
 
+  // Map a step count to a HSL colour on the log-scale green→red ramp.
+  // null (= no solution in budget) returns translucent grey; before two
+  // distinct samples have arrived (maxLog === minLog) we return plain green.
   static _heatColor(value, minLog, maxLog) {
     if (value == null) return 'rgba(120, 120, 120, 0.75)';
     if (!isFinite(minLog) || maxLog === minLog) return 'hsl(120, 65%, 60%)';
@@ -118,6 +129,8 @@ class Renderer {
     return `hsl(${hue}, 65%, 60%)`;
   }
 
+  // Format a step count compactly so it fits inside a heatmap cell:
+  // <1k literally, <1M as '12k', otherwise '1.2M'. null → em-dash.
   static _compactStepCount(n) {
     if (n == null) return '—';
     if (n < 1000) return String(n);

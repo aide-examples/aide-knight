@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>knight_plan</title>
+<style>
+:root {
+  --color-light:  #f0d9b5;
+  --color-dark:   #b58863;
+  --color-ink:    #3a2410;
+  --color-accent: #c0392b;
+}
+body {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: var(--color-ink);
+  background: #fbf6ee;
+  max-width: 48rem;
+  margin: 2rem auto;
+  padding: 0 1.5rem 4rem;
+  line-height: 1.55;
+}
+h1, h2, h3, h4 { font-family: system-ui, -apple-system, sans-serif; }
+h1 { font-size: 1.7rem; border-bottom: 2px solid var(--color-dark); padding-bottom: 0.3rem; }
+h2 { font-size: 1.3rem; margin-top: 2rem; border-bottom: 1px solid var(--color-dark); padding-bottom: 0.2rem; }
+h3 { font-size: 1.1rem; margin-top: 1.6rem; }
+h4 { font-size: 1rem; margin-top: 1.2rem; }
+a { color: var(--color-accent); }
+a:hover { text-decoration: none; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--color-light);
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+  font-size: 0.92em;
+}
+pre {
+  background: var(--color-light);
+  padding: 0.8rem 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  border-left: 3px solid var(--color-dark);
+}
+pre code { background: transparent; padding: 0; }
+blockquote {
+  border-left: 3px solid var(--color-accent);
+  margin: 1rem 0;
+  padding: 0.2rem 1rem;
+  color: #5a3a1e;
+  background: #fff9ee;
+}
+table { border-collapse: collapse; margin: 1rem 0; }
+th, td { border: 1px solid var(--color-dark); padding: 0.3rem 0.7rem; text-align: left; }
+th { background: var(--color-light); }
+img { max-width: 100%; height: auto; border: 1px solid var(--color-dark); }
+hr { border: none; border-top: 1px dashed var(--color-dark); margin: 2rem 0; }
+.nav-back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+}
+</style>
+</head>
+<body>
+<a class="nav-back" href="index.html">← back to app</a>
+<h1 id="aide-knight-didaktischer-master-plan--vom-prompt-zur-anwendung">aide-knight: Didaktischer Master-Plan — vom Prompt zur Anwendung</h1>
+<p>Versionierter Plan für den schrittweisen Aufbau der Knight's-Tour-App aus <code>knight.md</code>, als Lehrbeispiel für AI-gestützte Software-Entwicklung.</p>
+<h2 id="context">Context</h2>
+<p>Der Autor möchte einen <strong>wiederholbaren professionellen Prozess</strong> demonstrieren — möglicherweise live oder online vor Mischpublikum — wie ein nicht-trivialer Software-Anwendungsfall mit AI-Unterstützung gelöst wird, <strong>wenn man bei null Code startet und nur seine Gedanken so gut wie möglich verschriftlicht hat</strong> (<code>knight.md</code>, 33 Zeilen). Die ursprüngliche, funktionierende Implementation (8 Dateien, ~890 Zeilen) wurde vor Beginn dieses Plans hart gelöscht; sie existiert nur noch im Git-Objektspeicher unter dem Tag <code>pre-rebuild-2026-05-13</code>. Während der gesamten Übung ist sie tabu — sie würde den Reinheitsanspruch und damit die didaktische Aussage zerstören.</p>
+<p>Zielgruppe der Lehrunterlage: <strong>Mischpublikum</strong> — Programmierer mit AI-Einsteiger-Niveau bis hin zu AI-erfahrenen Praktikern, die methodisch besser werden wollen. Aufzeichnungsstil: <strong>verbatim</strong> während der Arbeit, <strong>didaktische Aufbereitung erst am Ende</strong> als separater Schritt.</p>
+<p><strong>Zwei Deliverables am Ende:</strong></p>
+<ol>
+<li>Die laufende Anwendung (Multi-File-HTML, lokal via <code>file://</code> ausführbar, alle Features aus <code>knight.md</code>).</li>
+<li>Eine <strong>Lehrunterlage</strong> mit Präambel (Argumente für das stufenweise Vorgehen) plus redigiertem Verlauf des Mensch-AI-Dialogs.</li>
+</ol>
+<p><code>knight.md</code> selbst bleibt unverändert — sie ist die &quot;Eingabe&quot; des Lehrbeispiels.</p>
+<hr>
+<h2 id="präambel-material-für-die-spätere-aufbereitung">Präambel-Material für die spätere Aufbereitung</h2>
+<p>Sammelpunkte, die in die Lehr-Präambel gehören. Bewusst hier festgehalten, damit sie im Aufbereitungsschritt nicht verloren gehen:</p>
+<ol>
+<li>
+<p><strong>Warum Spec ≠ Spezifikation.</strong> Eine 33-Zeilen-<code>knight.md</code> ist eine <strong>Intentionsskizze</strong>, kein vollständiger Auftrag. Pro Spec-Zeile entsteht im Schnitt ein bis zwei <strong>Mikro-Entscheidungen</strong>, die nur im Dialog beantwortbar sind (Wo platziert sich ein Button? Was bedeutet &quot;Re-Klick&quot; exakt? Welche Form von Symmetrie?). Eine &quot;Ein-Rutsch&quot;-Generation muss diese Mikro-Entscheidungen raten; die Wahrscheinlichkeit, alle simultan richtig zu raten, sinkt geometrisch mit der Featurezahl.</p>
+</li>
+<li>
+<p><strong>Warum Stufen.</strong> Jede Stufe = genau ein Feature + genau eine User-Validierung. Mikro-Entscheidung wird <strong>vor</strong> der Implementierung adressiert, <strong>getestet</strong> nach der Implementierung, <strong>committet</strong> wenn akzeptiert. Vorteile: (a) Rollback ist günstig, (b) Folgefehler-Kaskaden bleiben aus, (c) Performance-Probleme zeigen sich rechtzeitig (vor der nächsten Stufe), (d) der User behält jederzeit die Steuerung statt am Ende vor einem fait accompli zu stehen.</p>
+</li>
+<li>
+<p><strong>Warum &quot;Mensch an die Hand nehmen&quot;.</strong> AI-Pair-Programming funktioniert nicht durch Auftrag-und-Abholen, sondern durch Mikro-Dialog: AI schlägt vor → User korrigiert/erweitert → AI implementiert → User testet → Commit. Der Lehrwert liegt <strong>in der Reibung</strong>, nicht im glatten Ergebnis. Wir zeigen die Reibung, indem wir den Dialog erhalten.</p>
+</li>
+<li>
+<p><strong>Was Profis anders machen.</strong> AI-Disziplin: Spec lesen, kritisch hinterfragen, eigene Annahmen kennzeichnen, Test-Disziplin halten, kommunikative Klarheit erzwingen. Diese Haltungen werden im Prozess sichtbar — nicht durch Erklären, sondern durch Tun.</p>
+</li>
+</ol>
+<hr>
+<h2 id="phase-0--säuberung--selbst-verpflichtung">Phase 0 — Säuberung &amp; Selbst-Verpflichtung</h2>
+<p><strong>Ziel:</strong> Garantierte Tabula rasa. Der existierende Code wird gesichert und entfernt, bevor irgendetwas Neues entsteht.</p>
+<table>
+<thead>
+<tr>
+<th>Schritt</th>
+<th>Aktion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.1</td>
+<td><code>git tag pre-rebuild-2026-05-13</code> auf einen Initial-Commit der existierenden Implementation gesetzt — der alte Code ist im Git-Objektspeicher auffindbar, falls didaktisch später ein Vergleich gewünscht ist.</td>
+</tr>
+<tr>
+<td>0.2</td>
+<td><code>git rm app.js board.js solver.js ui.js index.html style.css</code> plus <code>knight_plan.md</code> durch diese neue Version ersetzen — Working-Tree enthält nur noch <code>knight.md</code>, den neuen <code>knight_plan.md</code> und <code>.git/</code>. Commit als <code>Phase 0: tabula rasa for didactic rebuild</code>.</td>
+</tr>
+<tr>
+<td>0.3</td>
+<td><strong>Selbst-Verpflichtung</strong>, hier in Stein gemeißelt: während aller folgenden Phasen konsultiert der AI-Assistent (Claude) <strong>weder</strong> via <code>Read</code> noch via <code>Bash</code> noch über andere Werkzeuge den vor-existierenden Code. Er existiert nur noch im Git-Objektspeicher unter <code>pre-rebuild-2026-05-13</code> und ist für die Übung tot.</td>
+</tr>
+<tr>
+<td>0.4</td>
+<td>Diesen Master-Plan als <code>aide-knight/knight_plan.md</code> versioniert — gleiche Datei, neuer Inhalt, sodass die Plan-Evolution ab dem ersten Schritt mit-protokolliert wird.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="phasen-111--schrittweiser-aufbau">Phasen 1–11 — Schrittweiser Aufbau</h2>
+<p>Jede Phase folgt demselben Vier-Schritt-Rhythmus:</p>
+<pre><code>  a) Mikrofragen klären   →   b) Implementierung   →   c) User-Test   →   d) Commit
+</code></pre>
+<p>Pro Phase: <strong>1–3 vorgelagerte Fragen</strong> an den User (Mikro-Entscheidungen), klare Akzeptanzkriterien, ein einziger Commit am Ende. Die &quot;Mikrofragen-Vorab&quot;-Spalte enthält Beispiele — die Liste wird im Live-Dialog kürzer oder länger ausfallen.</p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Ziel (eine Aussage)</th>
+<th>Lieferumfang</th>
+<th>Verifikation</th>
+<th>Vorab-Mikrofragen-Beispiele</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1</strong></td>
+<td>Brett rendert, Klick erkennbar</td>
+<td><code>index.html</code>, <code>style.css</code>, <code>app.js</code> (alles inline; Multi-File später) — 8×8 Schachbrett, Schachbrettfarben, Klick auf Feld zeigt im Status seine Koordinaten</td>
+<td>Browser per Doppelklick auf <code>index.html</code> öffnen, Brett sichtbar, Klick gibt Koord-Status</td>
+<td>Welche Schachbrett-Farben — klassisch braun/beige, Holzimitat, schwarz/weiß? Cursor-Style auf Feldern?</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td>Knight's-Tour-Solver-Kern für 8×8</td>
+<td><code>solver.js</code> mit iterativem DFS + Warnsdorff; Klick auf Feld startet Solve; Pfad wird als Linie + Felder-Nummern gerendert</td>
+<td>8×8 Springer-Tour löst in &lt;100 ms; Linie + Nummern sichtbar</td>
+<td>Linienfarbe? Strichstärke proportional zur Brettgröße? Wo wird &quot;Zugversuche: N&quot; angezeigt?</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td>Variable Brettmaße + Performance-Fundament</td>
+<td>W- und H-Eingaben, dynamische Canvas-Größe, <strong>Padding-Bordüre</strong> statt Bounds-Check (zukunftssicher für ungewöhnliche Move-Sets)</td>
+<td>100×200 löst noch (mit Warnsdorff) im einstelligen Sekundenbereich; 5×5 verweigert sinnvoll wenn keine Lösung existiert</td>
+<td>Maximale Brettgröße eingrenzen? Wie viele Padding-Felder pro Seite (max move-radius)?</td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td>Drei Heuristiken, vier Figuren, Mix-Button</td>
+<td>Dropdown Heuristik (Warnsdorff / Outside-In / Brute Force); Dropdown Figur (1,2)/(1,4)/(2,3)/(3,4); Button &quot;Reihenfolge mischen&quot; mit Tooltip, der die aktuelle Definitionsreihenfolge zeigt</td>
+<td>Wechsel der Figur lädt Brett neu; Outside-In zeigt erkennbar andere Tour-Geometrie als Warnsdorff; Mix-Button erzeugt sichtbar andere Tour bei sonst gleichen Settings</td>
+<td>Wo sitzt der Mix-Button? Permutiert er pro Klick neu oder bei jedem Reload? Persistent in localStorage?</td>
+</tr>
+<tr>
+<td><strong>5</strong></td>
+<td>Sichtbarkeits-Toggles</td>
+<td>Checkbox &quot;Nummern&quot;, Checkbox &quot;Linien&quot;; beide unabhängig</td>
+<td>An/aus jeweils sofort sichtbar; auch bei großen Boards lesbar (Schriftgröße passt sich an?)</td>
+<td>Schriftgröße fix oder adaptiv? Bei sehr kleinen Feldern Nummern nicht zeigen, auch wenn Checkbox an?</td>
+</tr>
+<tr>
+<td><strong>6</strong></td>
+<td>Geschlossene Touren via Beide-Enden-Verfahren</td>
+<td>Checkbox &quot;Geschlossen&quot;; Solver baut alternierend an Front und Tail des Pfads an; abschließende Linie vom letzten zum ersten Feld im Render</td>
+<td>8×8 Springer geschlossen löst; Closing-Linie ist sichtbar deutlich (anders gestrichelt? andere Farbe?)</td>
+<td>Wenn Closing-Linie diagonal über das Brett geht — wie wird sie visuell von der normalen Tour unterschieden?</td>
+</tr>
+<tr>
+<td><strong>7</strong></td>
+<td>Symmetrien (Achse, Punkt, Rotation-90° für Quadrate)</td>
+<td>Dropdown oder Checkbox-Gruppe; Solver respektiert Constraint; Rotationssymmetrie wirklich nur ein Viertel der Tour suchend</td>
+<td>Bei axisV auf 8×8 Springer Lösung sichtbar; bei point-Symmetrie ebenso; Rotation auf 6×6 Springer (falls Lösung existiert)</td>
+<td>UI-Element: ein Dropdown mit allen Optionen, oder mehrere Checkboxes? Was passiert bei inkompatibler Kombination (Rotation auf nicht-quadratischem Brett)?</td>
+</tr>
+<tr>
+<td><strong>8</strong></td>
+<td>Blockierbare Felder via Rechtsklick</td>
+<td>Rechtsklick togglet Feld blockiert/frei; blockierte Felder sind sichtbar anders dargestellt; Solver respektiert sie</td>
+<td>Beliebige Form aus blockierten Feldern; Solver findet Tour um sie herum oder meldet &quot;keine Lösung&quot;</td>
+<td>Rechtsklick-Visualisierung: Diagonal-Strich, anderer Farbton, X-Symbol? Browser-Kontextmenü unterdrücken?</td>
+</tr>
+<tr>
+<td><strong>9</strong></td>
+<td>Suchsteuerung: 5-s-Confirm + Re-Klick = nächste Lösung</td>
+<td>Solver fragt alle 5 s per <code>confirm()</code>, ob weitergesucht werden soll; Re-Klick auf dasselbe Startfeld setzt die Suche von der aktuellen Lösung aus fort (nicht von vorn)</td>
+<td>Beim langen Lauf (100×200) erscheint Dialog; &quot;Ja&quot; sucht weiter, &quot;Nein&quot; bricht ab; Re-Klick liefert sichtbar andere Tour, Zugversuche-Zähler läuft weiter</td>
+<td>Was bedeutet &quot;dasselbe Startfeld&quot; konkret — Cell-Koordinaten, oder Tour-ID-Erkennung? Re-Klick nach Heuristik-Wechsel — neu von vorn oder weiter?</td>
+</tr>
+<tr>
+<td><strong>10</strong></td>
+<td>Startfeld-Sensitivität-Button</td>
+<td>Button erscheint <strong>erst</strong> nach erster Lösung; Klick startet Erstlösungs-Suche von jedem Startfeld; Zugzahl pro Startfeld wird in das jeweilige Feld geschrieben (statt der Tour-Nummer)</td>
+<td>Auf 8×8 Springer Sensitivität-Lauf liefert 64 Zahlen, die Ecken-Felder zeigen typischerweise höhere Werte (mathematisch erwartet)</td>
+<td>Farbcodierung der Zahlen (Heatmap)? Persistiert die Anzeige beim nächsten Tour-Start oder wird sie überschrieben? Klick auf eine Zelle danach — startet Tour mit altem Verhalten?</td>
+</tr>
+<tr>
+<td><strong>11</strong></td>
+<td>Code-Hygiene &amp; 100×200-Stresstest</td>
+<td>Falls Phase 1–10 alles in einer Datei zusammenhäuft: aufteilen in <code>board.js</code>, <code>solver.js</code>, <code>ui.js</code>, <code>app.js</code> (vier Module). OO-Sauberkeit (Klassen, klare Schnittstellen). 100×200-Lauf mit jeder Heuristik als Akzeptanztest</td>
+<td>Code-Review-tauglich: jede Datei &lt; 250 Zeilen, klare Verantwortungstrennung, kein globaler State außerhalb der Modul-Klassen</td>
+<td>— (keine Mikrofragen; Refaktor folgt aus dem bisherigen Code)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="phase-12--aufbereitung-der-lehrunterlage">Phase 12 — Aufbereitung der Lehrunterlage</h2>
+<p><strong>Ziel:</strong> Aus dem verbatim aufgezeichneten Mensch-AI-Dialog wird zusammen mit dem User eine konsumierbare Lehrunterlage destilliert.</p>
+<p>Schritte:</p>
+<ul>
+<li>12.1 <strong>Transkript sichten.</strong> Wir lesen den vollständigen Dialog der Phasen 0–11. Markieren der besonders aufschlussreichen Stellen (Mikrofragen, korrigierte Annahmen, Aha-Momente).</li>
+<li>12.2 <strong>Präambel schreiben.</strong> Aufbauend auf den vier Punkten aus diesem Plan (Spec ≠ Spezifikation; Warum Stufen; Mensch-an-die-Hand; Was Profis anders machen) + konkreten Beispielen aus dem realen Transkript.</li>
+<li>12.3 <strong>Verlauf redigieren.</strong> Pro Phase: Kurzfassung (3–5 Sätze) + 1–2 ausgewählte Original-Dialogausschnitte als Illustration. Längen-Ziel pro Phase ≤ 1 Seite.</li>
+<li>12.4 <strong>Cross-Referenz.</strong> Wo eine Mikro-Entscheidung später korrigiert wurde, im Text rückwärts verlinken — das ist gerade für AI-erfahrene Praktiker wertvoll: &quot;Hier hätte ich besser direkt anders entschieden&quot;.</li>
+<li>12.5 <strong>Formatwahl.</strong> Ein PDF? Ein Markdown-Repository? Eine Notion-Page? — wird im Live-Dialog mit dem User vereinbart, nicht jetzt vorbestimmt.</li>
+</ul>
+<p>Phase 12 ist eine <strong>Co-Redaktion</strong> zwischen User und AI, kein Solo-Output.</p>
+<hr>
+<h2 id="was-strikt-nicht-passiert">Was strikt nicht passiert</h2>
+<ul>
+<li><strong>Kein heimliches Konsultieren</strong> des gelöschten Codes über <code>git show pre-rebuild-2026-05-13:...</code> oder ähnliche Tricks. Self-Verpflichtung aus Phase 0 ist bindend.</li>
+<li><strong>Keine Phasen-Bündelung</strong> — auch wenn zwei kleine Features zusammen &quot;in 10 Minuten gemacht&quot; wären, bleibt jede Phase ein eigener Commit. Sonst geht der didaktische Schritt-für-Schritt-Charakter verloren.</li>
+<li><strong>Keine späten Komplett-Rewrites</strong> zur Code-Schönheit. Sollten in Phase 11 strukturelle Probleme sichtbar werden, brechen wir in eine kleine, scharf umrissene Refaktor-Phase ab. Großflächiges &quot;Ich mach das mal eben sauber&quot; wäre genau die Anti-These zum Plan.</li>
+<li><strong>Kein Vorgriff auf knight.md-Erweiterungen.</strong> Was nicht in der <code>knight.md</code> steht, ist nicht Teil dieser Übung. Bei Fund neuer Wünsche im Verlauf: User entscheidet, ob die <code>knight.md</code> ergänzt wird (und damit ein neuer Item im Plan entsteht) oder ob der Wunsch geparkt wird.</li>
+</ul>
+<hr>
+<h2 id="erfolgs-indikatoren">Erfolgs-Indikatoren</h2>
+<p>Am Ende von Phase 11 sind erfüllt:</p>
+<ul>
+<li>Alle 14 Features aus <code>knight.md</code> funktionieren (gegen die Spec durchexerziert).</li>
+<li>100×200-Test grün mit Warnsdorff und Outside-In; Brute Force darf &quot;no result in time&quot;-mäßig abbrechen.</li>
+<li>App startet aus <code>file://</code> ohne Server/Node-Abhängigkeit.</li>
+<li>Code ist multi-file, OO-strukturiert, jede Datei kohärent.</li>
+</ul>
+<p>Am Ende von Phase 12 ist die Lehrunterlage in vom User gewähltem Format vorhanden, mit Präambel + redigiertem Verlauf der Phasen 0–11.</p>
+<hr>
+<h2 id="plan-evolution">Plan-Evolution</h2>
+<p>Diese Datei ist versioniert. Jede zukünftige Anpassung des Plans (z.B. wenn sich im Verlauf der Phasen herausstellt, dass eine Phase aufgespalten oder umgeordnet werden muss) entsteht als eigener Commit. <code>git log -- knight_plan.md</code> zeigt damit die historische Entwicklung des Plans selbst — ein Sekundär-Lehrmaterial: wie ein Plan unter Realität reagiert.</p>
+
+</body>
+</html>

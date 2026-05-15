@@ -42,6 +42,11 @@ class UI {
     this.onSymTypeChange     = null;
     this.onStopClick         = null;
     this.onSensitivityClick  = null;
+    // Last status specs per line. Each spec is either a string (literal) or
+    // [key, ...args] (i18n lookup). Kept so applyI18n() can re-render after
+    // a language switch.
+    this._statusSpec1 = undefined;
+    this._statusSpec2 = undefined;
   }
 
   // Push current i18n strings to all elements with a data-i18n attribute,
@@ -57,8 +62,19 @@ class UI {
     // but for now set explicitly since it has no data-i18n attribute yet.
     this.titleEl.textContent = t.t('title');
     this.titleEl.title       = t.t('resetTooltip');
+    // Re-render last status messages so they pick up the new language.
+    if (this._statusSpec1 !== undefined) this.statusEl.textContent  = this._renderStatus(this._statusSpec1);
+    if (this._statusSpec2 !== undefined) this.status2El.textContent = this._renderStatus(this._statusSpec2);
   }
 
+  // Resolve a status spec into the display string: an array is read as
+  // [i18n-key, ...args] and looked up; anything else is a literal string.
+  _renderStatus(spec) {
+    return Array.isArray(spec) ? this.theI18n.t(...spec) : spec;
+  }
+
+  // Push every value from theState into the corresponding form control.
+  // Called once at startup and whenever the title click resets everything.
   applyState() {
     const s = this.theState;
     this.langSelect.value      = s.lang;
@@ -75,6 +91,8 @@ class UI {
     this.refreshSymmetryOptions();
   }
 
+  // Wire every form control to its on*-callback slot. The slots themselves
+  // are filled by app.js after construction; we just relay change events.
   bindHandlers() {
     const readDims = () => {
       const newW = Math.max(1, parseInt(this.wInput.value, 10) || 8);
@@ -147,6 +165,8 @@ class UI {
     });
   }
 
+  // Show the current move-order (post-shuffle) as the Mix button's tooltip,
+  // so the user can see what `Shuffle order` actually permuted.
   updateMixTooltip() {
     const s = this.theState;
     this.mixBtn.title = s.activeMoves.map(([dx, dy]) => `(${dx},${dy})`).join('  ');
@@ -181,15 +201,26 @@ class UI {
     }
   }
 
+  // Accepts strings (literal) or [key, ...args] arrays (i18n lookup).
+  // Stored so a later applyI18n() can re-render in a new language.
   setStatus(line1, line2) {
-    if (line1 !== undefined) this.statusEl.textContent  = line1;
-    if (line2 !== undefined) this.status2El.textContent = line2;
+    if (line1 !== undefined) {
+      this._statusSpec1 = line1;
+      this.statusEl.textContent = this._renderStatus(line1);
+    }
+    if (line2 !== undefined) {
+      this._statusSpec2 = line2;
+      this.status2El.textContent = this._renderStatus(line2);
+    }
   }
 
+  // Show or hide the Stop button. Driver calls this on search start/end.
   showStopButton(visible) {
     this.stopBtn.hidden = !visible;
   }
 
+  // Show or hide the Sensitivity button. Becomes visible only after the
+  // first solution has been rendered (Phase 10 spec).
   showSensitivityButton(visible) {
     this.sensitivityBtn.hidden = !visible;
   }

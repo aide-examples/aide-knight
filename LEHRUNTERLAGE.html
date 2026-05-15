@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LEHRUNTERLAGE</title>
+<style>
+:root {
+  --color-light:  #f0d9b5;
+  --color-dark:   #b58863;
+  --color-ink:    #3a2410;
+  --color-accent: #c0392b;
+}
+body {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: var(--color-ink);
+  background: #fbf6ee;
+  max-width: 48rem;
+  margin: 2rem auto;
+  padding: 0 1.5rem 4rem;
+  line-height: 1.55;
+}
+h1, h2, h3, h4 { font-family: system-ui, -apple-system, sans-serif; }
+h1 { font-size: 1.7rem; border-bottom: 2px solid var(--color-dark); padding-bottom: 0.3rem; }
+h2 { font-size: 1.3rem; margin-top: 2rem; border-bottom: 1px solid var(--color-dark); padding-bottom: 0.2rem; }
+h3 { font-size: 1.1rem; margin-top: 1.6rem; }
+h4 { font-size: 1rem; margin-top: 1.2rem; }
+a { color: var(--color-accent); }
+a:hover { text-decoration: none; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--color-light);
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+  font-size: 0.92em;
+}
+pre {
+  background: var(--color-light);
+  padding: 0.8rem 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  border-left: 3px solid var(--color-dark);
+}
+pre code { background: transparent; padding: 0; }
+blockquote {
+  border-left: 3px solid var(--color-accent);
+  margin: 1rem 0;
+  padding: 0.2rem 1rem;
+  color: #5a3a1e;
+  background: #fff9ee;
+}
+table { border-collapse: collapse; margin: 1rem 0; }
+th, td { border: 1px solid var(--color-dark); padding: 0.3rem 0.7rem; text-align: left; }
+th { background: var(--color-light); }
+img { max-width: 100%; height: auto; border: 1px solid var(--color-dark); }
+hr { border: none; border-top: 1px dashed var(--color-dark); margin: 2rem 0; }
+.nav-back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+}
+</style>
+</head>
+<body>
+<a class="nav-back" href="index.html">← back to app</a>
+<h1 id="knights-tour-mit-ai-pair-programming--eine-lehrunterlage">Knight's Tour mit AI-Pair-Programming — eine Lehrunterlage</h1>
+<p>Das Dokument zeigt, wie eine gut strukturierte Software-Anwendung in einem Mensch-AI-Dialog entstehen kann, wenn man bei null Code startet und nur eine 33-Zeilen-Spec hat.</p>
+<hr>
+<h2 id="0-an-wen-richtet-sich-das-dokument">0. An wen richtet sich das Dokument?</h2>
+<p><strong>Zielgruppe.</strong> Mischpublikum — Programmierer mit AI-Einsteiger-Niveau bis hin zu AI-erfahrenen Praktikern, die methodisch besser werden wollen. Wer noch nie mit einem AI-Assistenten paar-programmiert hat, findet hier ein Vorgehen mit klaren Schritten. Wer es regelmäßig tut, findet hier Reibungspunkte und Anti-Patterns aus der Praxis.</p>
+<p><strong>Was du mitbringst.</strong> Ein Software-Problem mittlerer Größe — komplex genug für mehrere Sub-Features, klein genug für überschaubaren Code-Umfang. Einen AI-Assistenten. Bereitschaft zum stufenweisen Vorgehen statt &quot;alles in einem Rutsch&quot;.</p>
+<p><strong>Was du herausbekommst.</strong> Einen <em>wiederholbaren</em> Prozess für AI-Pair-Programming an realistischen Anwendungen. Konkrete Beispiele, wie er in echt schief- und gutgeht. Eine Sammlung methodischer Prinzipien, die sich auf andere Projekte übertragen lassen.</p>
+<p><strong>Quell-Artefakte im Repo.</strong></p>
+<ul>
+<li><a href="knight.html"><code>knight.md</code></a> — der F-Contract: 33 Zeilen FACHLICHE User-Wünsche.</li>
+<li><a href="T_CONTRACT.html"><code>T_CONTRACT.md</code></a> — der T-Contract: TECHNISCHE Anforderungen.</li>
+<li><a href="knight_plan.html"><code>knight_plan.md</code></a> — der Master-Plan, der die <strong>12 Phasen</strong> vorzeichnet.</li>
+<li><a href="PROTOKOLL.html"><code>PROTOKOLL.md</code></a> — die verbatim-nahe Aufzeichnung des kompletten Dialog-Verlaufs (1200+ Zeilen). Diese Lehrunterlage ist seine Destillation.</li>
+</ul>
+<p><strong>Empfohlene Begleit-Aktion.</strong> Öffne <code>aide-knight/index.html</code> lokal im Browser (Doppelklick reicht, kein Webserver nötig). Wenn ein Beispiel im Text eine URL-Konfiguration nennt, paste sie in den Browser — der Replay-Mechanismus aus Phase 7.5 macht jeden im Text genannten Zustand sofort reproduzierbar.</p>
+<p><strong>Lesezeit-Schätzung.</strong> 30–45 Minuten für den Hauptteil; offenes Stöbern im Lehrmomente-Anhang (Kapitel 3) je nach Interesse.</p>
+<hr>
+<h2 id="1-präambel">1. Präambel</h2>
+<p>Vier methodische Kern-Punkte, die das gesamte Projekt prägen. Jeder mit konkretem Verlauf-Beispiel illustriert.</p>
+<h3 id="11-warum-spec--spezifikation">1.1 Warum Spec ≠ Spezifikation</h3>
+<p>Eine 33-Zeilen-<code>knight.md</code> ist eine <strong>Intentionsskizze</strong>, kein vollständiger Auftrag. Sie hält fest, <em>was</em> der User will — sie sagt aber nicht <em>wie</em> das im Detail aussehen soll. Pro Spec-Zeile entstehen typischerweise ein bis zwei <strong>Mikro-Entscheidungen</strong>, die nur im Dialog beantwortbar sind: Wo platziert sich ein Button? Was bedeutet &quot;Re-Klick&quot; exakt? Welche Farbe für die Tour-Linie? Welche Heuristik-Reihenfolge bei Gleichstand?</p>
+<p>Konkret aus Phase 1 — &quot;Schachbrett rendern, Klick erkennbar&quot;: Eine einzige Spec-Zeile (&quot;typische Schachbrett-Farben&quot;), aber vier Mikrofragen auf dem Tisch:</p>
+<blockquote>
+<p>Welche Farben für das Schachbrett? — Klassisches Schach-Schema (chess.com / lichess-Defaults).
+Schwarzer Text auf dunklen Feldern — kontraststark genug? — Mischung &quot;weiß auf dunkel / schwarz auf hell&quot; wäre unruhig. Lösung: <em>eine</em> Tintenfarbe für alles.
+Wo soll die Klick-Koordinate erscheinen? — Status-Zeile unter dem Brett, Format <code>&lt;col&gt; / &lt;row&gt;</code>.
+Inline (HTML+CSS+JS in einer Datei) oder schon jetzt mehrere Dateien? — Drei getrennte Dateien.</p>
+</blockquote>
+<p>Vier Mikrofragen für eine Zeile Spec. Eine &quot;Ein-Rutsch&quot;-Generation müsste alle vier raten — die Wahrscheinlichkeit, alle simultan richtig zu raten, sinkt geometrisch mit der Featurezahl. Eine vollständige Knight's-Tour-App umfasst rund 14 Features aus der Spec. Bei 1–2 Mikrofragen pro Feature und 50 % Trefferquote pro Frage liegt die Erfolgsrate eines One-Shot-Generierens unter 1 ‰. Die Stufung in Mikro-Dialoge ist nicht Vorsicht — sie ist Mathematik.</p>
+<p>Übrigens: die vierte Frage bezieht sich auf eine TECHNISCHE Anforderung, die in der FACHLICHEN SPEC eigentlich nichts zu suchen hat. Hintergrund ist, dass die Notwendigkeit eines separaten T-Contracts erst in Phase 7 erkannt wurde.</p>
+<h3 id="12-warum-stufen">1.2 Warum Stufen</h3>
+<p>Jede Phase = genau ein Feature + genau eine User-Validierung. Mikro-Entscheidungen werden <em>vor</em> der Implementierung geklärt, getestet <em>nach</em> der Implementierung, committet <em>wenn</em> akzeptiert. Der Vier-Schritt-Rhythmus</p>
+<pre><code>   Mikrofragen klären   →   Implementierung   →   User-Test   →   Commit
+</code></pre>
+<p>zieht sich durch alle 12 Phasen. Vorteile:</p>
+<ol>
+<li><strong>Rollback ist billig.</strong> Jede Phase ist ein einzelner (manchmal mehrere) Commit. Wenn eine Mikro-Entscheidung sich später als falsch herausstellt, ist sie isoliert revertierbar.</li>
+<li><strong>Folgefehler-Kaskaden bleiben aus.</strong> Ein falsches Detail in Phase 3 würde sich ohne stufenweise Validierung erst in Phase 7 als bizarrer Bug zeigen. So fängt es der User-Test sofort.</li>
+<li><strong>Performance-Probleme zeigen sich rechtzeitig.</strong> Phase 3 hat das 100×200-Bord als Akzeptanztest. Hätte der Solver dort gehakt, wäre es vor dem 5-Feature-Stack der späteren Phasen aufgefallen — nicht erst beim Phase-11-Stresstest.</li>
+<li><strong>Der User behält die Steuerung.</strong> Statt am Ende vor einem fait accompli zu stehen, sieht er nach jeder Phase das Zwischenergebnis und kann umschwenken.</li>
+</ol>
+<p>Punkt 4 wird in dieser Übung mehrfach zum Tragen kommen — z.B. wenn der User mid-Phase 4 darauf besteht, dass UI komplett auf Englisch sein soll, oder wenn er mid-Phase 6 einen besseren Algorithmus vorschlägt.</p>
+<h3 id="13-warum-mensch-an-die-hand-nehmen">1.3 Warum &quot;Mensch an die Hand nehmen&quot;</h3>
+<p><em>AI-Pair-Programming funktioniert nicht durch Auftrag-und-Abholen.</em> Es funktioniert durch <strong>Mikro-Dialog</strong>: AI schlägt vor, User korrigiert oder bestätigt, AI implementiert, User testet, gemeinsam wird committet. Der Lehrwert dieser Übung liegt <strong>in der Reibung</strong>, nicht im glatten Ergebnis.</p>
+<p>Glatte Ergebnisse lassen sich auch ohne Reibung produzieren — sie überzeugen aber niemanden, der die Übung nachvollziehen will. Das <code>PROTOKOLL.md</code> dokumentiert deshalb verbatim-nahe, <em>wo</em> es Reibung gab. Drei besonders dichte Stellen:</p>
+<ul>
+<li><strong>Phase 3 Resize-Nachzügler.</strong> User-Halbsatz: <em>&quot;Wenn wir auf einem Android Device sind und das Gerät von Portrait nach Landscape drehen muss es auch klappen ...&quot;</em> — eine Korrektur an der AI, die zu einer projektübergreifenden Regel in <code>~/.claude/CLAUDE.md</code> wurde.</li>
+<li><strong>Phase 7.5 NFR-Diagnose.</strong> Der User stellte fest, dass die ersten sieben Phasen an einem strukturellen Designmangel litten. Mehr dazu in Kapitel 2.8 — das ist der wahrscheinlich wichtigste einzelne Moment des Projekts.</li>
+<li><strong>Phase 6 Schwenk-Bias.</strong> Der User schlug mitten in der Implementierung eines schwierigeren Algorithmus einen einfacheren vor — und damit eine Code-Ersparnis von rund 70 Zeilen.</li>
+</ul>
+<p>Wer den Verlauf glättet, glättet auch das didaktisch Wertvollste heraus. Diese Lehrunterlage versucht das Gegenteil: die Stolperstellen sichtbar zu lassen.</p>
+<h3 id="14-was-profis-anders-machen">1.4 Was Profis anders machen</h3>
+<p>Vier Haltungen, die im Projekt-Verlauf praktisch geworden sind:</p>
+<p><strong>1. F-Contract und T-Contract gleichzeitig.</strong> Die &quot;Spec&quot; deckt nur die Funktionalität ab (<code>knight.md</code> = F-Contract). Daneben braucht jedes nicht-triviale Projekt einen <strong>T-Contract</strong> (Technical Platform / Non-Functional Requirements): Architekturstil, i18n als Architektur, Replay-Testbarkeit, Accessibility, Resize/Reflow, Browser-Kompat, Performance-Limits. Beide Verträge gehören auf den Tisch <em>bevor</em> die erste Zeile Code entsteht. Wir haben es im Verlauf <em>nicht</em> getan und dafür mit einem 686-Zeilen-Monolith-Refactor in Phase 7.5 bezahlt.</p>
+<p><strong>2. Baseline-Verhalten ist kein Feature.</strong> Resize-Reaktion, Hover-States, Keyboard-Bedienbarkeit, Focus-Indikatoren, sensible Default-Größen — das sind keine Features, das ist Hygiene des Mediums. YAGNI darf das nicht aushebeln. (Lehrstück aus Phase 3.)</p>
+<p><strong>3. Dependency Injection statt Singleton.</strong> <code>static getInstance()</code> ist globaler State in Klassen-Hülle. <code>const theX = new X(...)</code> am Entry-Point + explizite Weiterreichung macht die Abhängigkeitsstruktur sichtbar. (Erkenntnis aus dem Architektur-Cluster vor Phase 9.)</p>
+<p><strong>4. Detektor-vor-Fix.</strong> Wenn ein Bug entdeckt wird, den die Software bisher nicht erkannt hat: erst der Software das Erkennen beibringen, am echten Bug validieren, <em>dann</em> fixen. Phase 8 hat das praktisch exerciert — ein Test hing, der User schickte eine Replay-URL, die AI reproduzierte mit dem Node-Probe, der Test wurde durch eine bessere Konfiguration ersetzt.</p>
+<p>Diese vier Haltungen sind keine &quot;AI-spezifischen&quot; Regeln. Sie sind ganz normale Software-Disziplin — sie werden im AI-Pair-Programming nur <em>sichtbarer</em>, weil die AI ohne sie zuverlässig versagt und der Schaden früh auftritt.</p>
+<hr>
+<h2 id="2-verlauf--phasen-chronologie">2. Verlauf — Phasen-Chronologie</h2>
+<p>Pro Phase: Ziel, wichtigste Mikrofragen, ggf. Originalzitat, Was-hat-man-gelernt.</p>
+<h3 id="20-phase-0--tabula-rasa--self-commitment">2.0 Phase 0 — Tabula rasa &amp; Self-Commitment</h3>
+<p><strong>Ziel.</strong> Vor Beginn des didaktischen Aufbaus garantiert sicherstellen, dass <em>kein</em> Vorwissen aus einer früheren Implementierung den Verlauf verfälscht.</p>
+<p><strong>Aktion.</strong> Die bestehende, lauffähige Implementation (8 Dateien, ~890 Zeilen) wurde per <code>git tag pre-rebuild-2026-05-13</code> gesichert und dann per <code>git rm</code> aus dem Working Tree entfernt. Nur <code>knight.md</code> und <code>.git/</code> blieben übrig. Zusätzlich <strong>Self-Commitment der AI:</strong> während aller folgenden Phasen wird der alte Code <em>nicht</em> konsultiert — weder per <code>Read</code>, noch per <code>Bash</code>, noch per <code>git show pre-rebuild-...</code>. Diese Selbst-Verpflichtung ist Teil der didaktischen Reinheit.</p>
+<p><strong>Was hat man gelernt?</strong></p>
+<ul>
+<li>Reproduzierbare AI-Pair-Programming-Übungen verlangen einen sauberen Start. Heimliches &quot;Spicken&quot; wäre für die AI technisch möglich, für die Übung aber verlogen.</li>
+<li>Ein Master-Plan als versioniertes Dokument im Repo (statt im ephemeren Claude-Plan-File) macht den Plan-Verlauf nachverfolgbar.</li>
+</ul>
+<h3 id="21-phase-1--brett-rendert-klick-erkennbar">2.1 Phase 1 — Brett rendert, Klick erkennbar</h3>
+<p><strong>Ziel.</strong> 8×8 Schachbrett anzeigen, Klick auf ein Feld zeigt dessen Koordinaten unten an.</p>
+<p><strong>Mikrofragen.</strong> Vier — siehe Präambel-Beispiel oben. Bemerkenswert: keine einzige war &quot;wie soll das aussehen?&quot; generisch. Alle waren konkret: Farbschema (chess.com), Textfarbe-Konsistenz (eine Tinte für alles), Status-Format (<code>col / row</code>), Datei-Aufteilung (3 Dateien sofort).</p>
+<p><strong>Was hat man gelernt?</strong></p>
+<ul>
+<li>Die Anzahl der Mikrofragen <em>vor der ersten Codezeile</em> ist überraschend hoch. Wer das im Voraus nicht plant, gerät unter Druck und entscheidet im Dialog-Stress, was später korrigiert werden muss.</li>
+<li>Eine &quot;Klassische Schach-Farbe&quot;-Antwort entlastet von späteren Streitigkeiten. Defaults aus etablierten Vorbildern (chess.com, lichess) sind wertvoll.</li>
+</ul>
+<p><img src="_assets/phase-1-board.png" alt="Phase 1 — leeres 8×8 Brett, Klick-Echo in der Status-Zeile"></p>
+<h3 id="22-phase-2--solver-kern-dfs--warnsdorff">2.2 Phase 2 — Solver-Kern (DFS + Warnsdorff)</h3>
+<p><strong>Ziel.</strong> Klick auf ein Feld startet die Tour-Suche; gefundene Tour wird als Linie + Nummern dargestellt.</p>
+<p><strong>Mikrofragen vorab.</strong> Linienfarbe (kräftiges Rot <code>#c0392b</code>), Schritt-Zähler-Position (zweite Status-Zeile), Wortlaut &quot;Lösung nach N Schritten.&quot; (User-Diktion: <em>Schritten</em>, nicht <em>Zugversuchen</em>).</p>
+<p><strong>Mid-Phase-Korrekturen.</strong> Während der Implementierung gab es zwei wichtige User-Eingriffe:</p>
+<blockquote>
+<p>&quot;Das UI soll komplett in Englisch sein. Wäre es schwierig, wenn du alles so vorbereitest, dass wir später weitere Sprachen hinzufügen können?&quot;</p>
+<p>&quot;Du zeichnest zuerst die Feldnummern und danach die roten Linien. Ich glaube, umgekehrt wäre es besser.&quot;</p>
+</blockquote>
+<p>Beide Korrekturen wanderten direkt in den Phase-2-Commit — die i18n-Architektur als STRINGS-Map und die Layer-Reihenfolge per CSS-Variable + Z-Index.</p>
+<p><strong>Was hat man gelernt?</strong></p>
+<ul>
+<li><strong>Mid-Phase-Korrekturen sind Methode, nicht Versagen.</strong> Wenn der User mid-Phase eine bessere Idee hat, gehört sie <em>in dieselbe Phase</em>, nicht in eine Nachfolge-Phase mit &quot;Polish&quot; im Titel.</li>
+<li>Die kleine i18n-Vorbereitung (STRINGS-Map, auch wenn vorerst nur <code>en</code> aktiv) zahlt sich später vielfach zurück (Phase 7.5).</li>
+</ul>
+<p><img src="_assets/phase-2-solution.png" alt="Phase 2 — erste gelöste Knight's Tour mit Linien und Nummern"></p>
+<h3 id="23-phase-3--variable-brettmaße--padding-fundament">2.3 Phase 3 — Variable Brettmaße + Padding-Fundament</h3>
+<p><strong>Ziel.</strong> W- und H-Eingaben, dynamische Brettgröße, Padding-Bordüre im Solver (statt Out-of-Bounds-Check pro Move).</p>
+<p><strong>Mikrofragen vorab.</strong> Padding-Tiefe (dynamisch pro Figur — wird <code>max(|dx|, |dy|)</code>), Brettgrößen-Cap (keiner — User akzeptiert Crash-Risiko), W/H-Apply-Verhalten (auto auf blur/Enter).</p>
+<p><strong>Lehrreiche Befunde im User-Test.</strong> Drei algorithmische Phänomene wurden sichtbar:</p>
+<table>
+<thead>
+<tr>
+<th>Konfig</th>
+<th>Schritte</th>
+<th>Bemerkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8×4 Warnsdorff von Ecke</td>
+<td><strong>13.4 Mio</strong></td>
+<td>Warnsdorff <em>kann</em> auf schmalen Rechtecken in Sackgassen geraten. Bekannte Eigenheit; Tie-Breaker-Regeln (Pohl 1967) würden helfen — out of scope.</td>
+</tr>
+<tr>
+<td>200×100 Warnsdorff</td>
+<td>19 999</td>
+<td>Praktisch perfekt — keine Backtracks.</td>
+</tr>
+<tr>
+<td>5×5 von hellem Feld</td>
+<td><code>null</code></td>
+<td><strong>Paritätsbeweis:</strong> 13 dunkle + 12 helle Felder, Tour alterniert Farben → von hellem Start unmöglich. <em>Schöne mathematische Mikro-Anekdote.</em></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Der Resize-Nachzügler — DER Lehrmoment der Phase.</strong></p>
+<blockquote>
+<p>&quot;Dieses Resize Verhalten ist etwas, von dem ich erwartet hätte, dass du es auch dann automatisch einbaust, wenn ich es nicht explizit vorgebe. Ist da meine Erwartung zu hoch? Wenn wir auf einem Android Device sind und das Gerät von Portrait nach Landscape drehen, muss sich das UI ebenfalls anpassen.&quot;</p>
+</blockquote>
+<p>Die ehrliche Antwort: nein, die Erwartung ist nicht zu hoch — sie ist die richtige. Es folgte ein eigener Nachzügler-Commit mit Resize-Listener (trailing-edge debounced via <code>setTimeout</code>) und eine <strong>neue Sektion in <code>~/.claude/CLAUDE.md</code></strong>:</p>
+<blockquote>
+<p><strong>Baseline-Verhalten ist kein Feature.</strong> Resize/Reflow auf Viewport-Änderungen, Hover-States auf klickbaren Elementen, Keyboard-Bedienbarkeit, lesbare Defaults — das sind Dinge, die ein Profi automatisch einbaut, ohne dass der User sie im Brief erwähnen muss.</p>
+</blockquote>
+<p><strong>Was hat man gelernt?</strong></p>
+<ul>
+<li><strong>Der User korrigiert die AI</strong> — und manchmal entsteht aus <em>einer</em> Korrektur eine projektübergreifende Regel.</li>
+<li>Performance-pathologische Konfigurationen (8×4 Warnsdorff) zeigen sich am natürlichen Brett-Test. Ohne stufenweise Validierung würden sie erst beim Phase-11-Stresstest auffallen.</li>
+</ul>
+<p><img src="_assets/phase-3-8x4.png" alt="Phase 3 — 8×4 Warnsdorff: 13.4M Schritte zeigen die Pathologie des Verfahrens auf schmalen Rechtecken"></p>
+<p><img src="_assets/phase-3-200x100.png" alt="Phase 3 — 200×100 Warnsdorff: 19 999 Schritte, praktisch perfekt"></p>
+<h3 id="24-phase-4--heuristiken-figuren-mix-button-localstorage">2.4 Phase 4 — Heuristiken, Figuren, Mix-Button, localStorage</h3>
+<p><strong>Ziel.</strong> Heuristik-Dropdown (Warnsdorff / Outside-In / Brute Force), Figur-Dropdown ((1,2)/(1,4)/(2,3)/(3,4)), Mix-Button mit Tooltip, voller State in localStorage.</p>
+<p><strong>Mikrofragen vorab.</strong> Layout (eigene Reihe unter W/H), Mix-Trigger (würfeln + sofort re-solvieren von letztem Startfeld), Persistenz (voller State).</p>
+<p><strong>Status-Feedback-Bug, mid-phase.</strong></p>
+<blockquote>
+<p>&quot;Wenn ich ein Feld anklicke, wird es nicht sofort in der Fußleiste gezeigt; als Rückmeldung wäre es aber nötig, dies zu tun, bevor die Suche beginnt.&quot;</p>
+</blockquote>
+<p>Ursache: JS ist single-threaded — der Click-Handler aktualisiert den Status, ruft dann aber synchron <code>solve()</code> auf, das den Main-Thread blockiert; der Browser kommt vor dem Block nicht zum Repaint. Fix: <strong>Double-<code>requestAnimationFrame</code></strong> zwischen Statusupdate und <code>solve()</code>. Per globaler <code>CLAUDE.md</code>-Regel sind <code>setTimeout(0)</code> als Timing-Workarounds grundsätzlich unerwünscht.</p>
+<p><strong>Re-Klick-Frage abgegrenzt.</strong> Im selben Atemzug stellte der User die Frage, ob &quot;Re-Klick = weitersuchen&quot; zu dieser Phase gehört. Antwort: nein, zu Phase 9 — denn die &quot;Continue from current solution&quot;-Logik braucht eine speicherbare Search-State-Struktur, die in Phase 9 sowieso aufgebaut werden muss.</p>
+<p><strong>Was hat man gelernt?</strong></p>
+<ul>
+<li>Selbst die AI muss daran erinnert werden, dass synchrone Solver vor dem Repaint blockieren. Die Mid-Phase-Korrektur deckte eine Lücke in der eigenen JS-Disziplin auf.</li>
+<li><strong>Phasen-Grenzen verteidigen</strong> — Re-Klick gehört nicht hierher, auch wenn der User danach fragt. Phasen-Bündelung würde Master-Plan-Klarheit zerstören.</li>
+</ul>
+<p><img src="_assets/phase-4-heuristic.png" alt="Phase 4 — Heuristik-Wechsel produziert sichtbar andere Tour-Geometrie bei gleichem Startfeld"></p>
+<h3 id="25-phase-5--sichtbarkeits-toggles">2.5 Phase 5 — Sichtbarkeits-Toggles</h3>
+<p><strong>Ziel.</strong> Checkboxen &quot;Numbers&quot; und &quot;Lines&quot;, unabhängig schaltbar.</p>
+<p><strong>Mikrofragen vorab.</strong> Eigene dritte Reihe; Auto-Hide für Nummern, wenn Font &lt; 9 px (z.B. auf 200×100 mit 4-px-Zellen).</p>
+<p><strong>Implementierung.</strong> Beide Toggles via CSS-Variable <code>--num-display</code> / <code>--overlay-display</code>. Flippen einer Checkbox schreibt nur die CSS-Variable um — kein DOM-Eingriff, gerenderte Tour bleibt unangetastet.</p>
+<p><strong>Was hat man gelernt?</strong></p>
+<ul>
+<li>CSS-Variablen als Toggle-Mechanismus sind angenehm leicht.</li>
+<li>Eine <em>dynamische</em> Schwelle (auto-hide bei Font &lt; 9 px) ist erklärungsbedürftiger als eine feste, aber UX-mäßig richtiger. Die Mikrofrage zwingt zur bewussten Entscheidung.</li>
+</ul>
+<p><img src="_assets/phase-5-lines-only.png" alt="Phase 5 — nur Linien sichtbar, Nummern ausgeblendet"></p>
+<p><img src="_assets/phase-5-numbers-only.png" alt="Phase 5 — nur Nummern sichtbar, Linien ausgeblendet"></p>
+<h3 id="26-phase-6--geschlossene-touren-via-schwenk-bias">2.6 Phase 6 — Geschlossene Touren via Schwenk-Bias</h3>
+<p><strong>Ziel.</strong> Checkbox &quot;Closed&quot;. Wenn aktiv, sucht der Solver geschlossene Touren. Bei Erfolg: zusätzliche gestrichelte Linie vom letzten zum ersten Feld.</p>
+<p><strong>Mikrofragen vorab.</strong> Closing-Linie (gestrichelt, gleiche Farbe), Checkbox-Platzierung (Reihe 3).</p>
+<p><strong>Der User-Vorschlag mit Algorithmus-Verbesserung — Höhepunkt der Phase.</strong></p>
+<p>Der Master-Plan hatte das Verfahren &quot;abwechselnd an beiden Enden des Pfades anbauen&quot; aus <code>knight.md</code> skizziert. Die AI begann mit der Implementierung. Mitten drin kam der User mit einer einfacheren Idee:</p>
+<blockquote>
+<p>&quot;Noch eine Idee zur geschlossenen Tour: Wenn du z.B. in einer Ecke beginnst und dann das nächste Feld erreichst, dann musst du dafür sorgen, dass das andere Feld, von dem man aus das Startfeld erreichen kann, solange wie nur irgend möglich NICHT benutzt wird. Wenn du ihm eine künstlich verfälschte hohe Zahl von Freiheitsgraden gibst (oder es algorithmisch bei der Suche bis zum vorletzten Zug aussparst), dann sollte das ein ganz effektives Verfahren sein, um geschlossene Pfade zu finden.&quot;</p>
+</blockquote>
+<p>Das ist <strong>die klassische Schwenk-Technik</strong> in einer extrem einfachen Implementations-Form: Startnachbarn mit <code>+1000</code>-Penalty im Warnsdorff-Score, damit sie erst spät platziert werden; der letzte Zug landet dann automatisch auf einem davon. Vorteile gegenüber dem alternierenden Anbauen:</p>
+<ul>
+<li><strong>Eindimensional</strong>, kein Deque, ein Pfad-Array</li>
+<li><strong>~10 Zeilen</strong> Code-Erweiterung statt ~80</li>
+<li><strong>Bei Warnsdorff/Outside-In hocheffektiv</strong>: 8×8 Knight closed löst in 85 Schritten (gegenüber 63 für offen, also nur 35 % Overhead)</li>
+</ul>
+<p><strong>Was hat man gelernt?</strong></p>
+<ul>
+<li><strong>Der User verbessert den Algorithmus, nicht die AI.</strong> Der Master-Plan-Vorschlag war plausibel, aber nicht der eleganteste. Die AI hat ihn zunächst übernommen — der User hatte den klareren Blick.</li>
+<li><strong>Spec-Vorschläge sind nicht heilig.</strong> <code>knight.md</code> schlug ein konkretes Verfahren vor; der User hat mid-implementation eine bessere Version vorgeschlagen, und dieser Vorschlag landete in der App.</li>
+</ul>
+<p><img src="_assets/phase-6-closed.png" alt="Phase 6 — geschlossene Tour via Schwenk-Bias, gestrichelte Closing-Linie zwischen Start und Ende"></p>
+<h3 id="27-phase-7--symmetrien-axisv--point--rot90">2.7 Phase 7 — Symmetrien (axisV / point / rot90)</h3>
+<p><strong>Ziel.</strong> Symmetrie-Dropdown; Solver respektiert das Constraint; rotationssymmetrische Suche tatsächlich nur ein Viertel der Tour.</p>
+<p><strong>Scope-Erweiterung.</strong> <code>knight.md</code> Z. 24 nennt nur Rotationssymmetrie. Der Master-Plan generalisierte auf 3 Typen. User-Entscheid: &quot;Auch Achse + Punkt mitnehmen&quot;. Plus User-Bestätigung der Auto-Orbit-Logik (Klick auf eine Zelle unter rot90 → 4 Zellen werden gemeinsam visited/blocked).</p>
+<p><strong>Bias-Bug, mid-implementation.</strong> Erste Smoke-Tests zeigten: AxisV auf 8×8 abortierte nach 50.000.000 Schritten ohne Lösung — obwohl axis-symmetrische Touren existieren sollten. Ursache: der Schwenk-Bias aus Phase 6 brauchte unter Symmetrie eine Erweiterung. Wenn der Solver <code>(1,2)</code> platziert, wird der Spiegel <code>(6,2)</code> <em>automatisch</em> mitbesucht (Orbit-Mate). Wenn <code>(6,2)</code> zur Closure-Klasse gehört (&quot;save for last&quot;), ist sie damit unwiederbringlich verbraucht. Fix: die Bias-Menge umfasst Bridge-Neighbors <em>und ihre Orbit-Mates</em>.</p>
+<p><strong>Mathematische Restriktion.</strong> Die Farbparitäts-Analyse zeigte: der Algorithmus findet symmetrische Touren <em>nicht</em> universell, sondern nur unter Brett-Geometrien, die die Shift-by-Quarter-Struktur unterstützen. Konkret:</p>
+<ul>
+<li><code>axisV</code>: W gerade <em>und</em> W·H ≡ 2 mod 4 → 6×3, 6×5, 10×3, 10×5 ✓ — 8×8 ✗</li>
+<li><code>point</code>: W gerade <em>und</em> H gerade → 8×8 ✓</li>
+<li><code>rot90</code>: W=H gerade <em>und</em> N² ≡ 4 mod 8 → 6×6, 10×10 ✓ — 8×8 ✗</li>
+</ul>
+<p>Das ist eine <em>Eigenschaft des Algorithmus</em>, nicht eine mathematische Unmöglichkeit — auf 8×8 <em>existieren</em> rot90-symmetrische Touren, sie haben aber eine andere Pfad-Struktur, die ein verfeinerter Solver bräuchte.</p>
+<p><strong>Was hat man gelernt?</strong></p>
+<ul>
+<li><strong>Algorithmus-Restriktionen transparent dokumentieren statt verstecken.</strong> Die Validitäts-Regeln in <code>isSymTypeValid</code> sind absichtlich strikter als die mathematischen.</li>
+<li><strong>Bias unter Symmetrie ist subtil.</strong> Orbit-Mates müssen mitbedacht werden — sonst leakt der &quot;save-for-last&quot;-Effekt.</li>
+</ul>
+<p><img src="_assets/phase-7-rot90.png" alt="Phase 7 — 6×6 Knight Outside-In mit Rotation 90°: rotationssymmetrische geschlossene Tour, gefunden in 10 Schritten"></p>
+<h3 id="28-phase-75--t-contract--architektur-retrofit-der-höhepunkt">2.8 Phase 7.5 — T-Contract &amp; Architektur-Retrofit (DER Höhepunkt)</h3>
+<p><strong>Was vorher passierte.</strong> Phase 7 wurde implementiert und protokolliert. Die AI war zufrieden, der User auch — <em>fachlich</em>. Dann kam der Halbsatz:</p>
+<blockquote>
+<p>&quot;Wir kommen fachlich gut voran. Trotzdem hab ich Sorgenfalten im Gesicht. Ahnst du warum?&quot;</p>
+</blockquote>
+<p>Die AI ratete viermal falsch (didaktische Tiefe vs. Mischpublikum, Code-Aufblähung, <code>knight.md</code>-Vorgriff in Phase 7, Zeitbudget). Erst auf User-Seite kam das Stichwort:</p>
+<blockquote>
+<p>&quot;Ich helf dir mit einem Stichwort: NFR&quot;</p>
+</blockquote>
+<p>Und dann die volle Diagnose:</p>
+<blockquote>
+<p>&quot;Unser gesamtes Vorgehen hat einen Designmangel. Wir hätten von Anfang an einen T-Contract (Technical Platform, NFRs) haben sollen und parallel dazu den F-Contract mit der Funktionalität. Ein guter T-Contract hätte replay-fähige Tests gefordert und du hättest daraufhin automatisch (hoffe ich) URL-Args eingeführt, über die zusammen mit CURL eine Automatisierung möglich ist. Wir hätten von Anfang an die i18n-Frage geklärt und Device-Rotation-Fragen und andere Ergonomie-Basics nicht im Rahmen des F-Contracts diskutiert.&quot;</p>
+</blockquote>
+<p>Plus die schärfere Variante:</p>
+<blockquote>
+<p>&quot;Ich hatte von guter objektorientierter Architektur gesprochen. Und du baust einen großen Wald aus lauter globalen Functions.&quot;</p>
+</blockquote>
+<p><strong>Was die AI konkret übersehen hatte.</strong></p>
+<ul>
+<li><code>knight.md</code> Z. 18 (&quot;Code soll sehr gut objektorientiert strukturiert sein&quot;) wurde fälschlich als &quot;Phase-11-Refactor&quot; interpretiert → 686 Zeilen monolithisches <code>app.js</code> mit globalen <code>let</code>-Variablen.</li>
+<li>Replay-Tests via URL-Args + headless Chromium fehlten komplett.</li>
+<li>i18n war halb-implementiert.</li>
+<li>Resize/Reflow kam erst als Nachzügler nach User-Hinweis in Phase 3.</li>
+<li>Accessibility nach sieben Phasen weiterhin null.</li>
+</ul>
+<p><strong>Retrofit-Block (7 Commits).</strong></p>
+<ol>
+<li><code>T_CONTRACT.md</code> als eigenes Dokument schreiben (Sektion 1 Architektur, 2 Plattform-Constraints, 3 Replay-Testbarkeit, 4 Responsivität, 5 i18n, 6 a11y, 7 Performance &amp; Robustheit, 8 Code-Qualität).</li>
+<li>OO-Split der 686-Zeilen-<code>app.js</code> in 8 Module (i18n, figures, solver, state, board, renderer, ui, app).</li>
+<li>URL-Hash für vollständig replay-baren State.</li>
+<li>i18n-Konsolidierung + sichtbarer Sprach-Switcher.</li>
+<li>a11y-Basics (Keyboard-Nav, ARIA, Focus-Ringe, aria-live).</li>
+<li>Browser-basiertes Test-Skelett unter <code>tests/</code>.</li>
+<li>PROTOKOLL-Eintrag + <code>CLAUDE.md</code>-Erweiterung <em>&quot;F-Contract und T-Contract gehören gleichzeitig an den Anfang&quot;</em>.</li>
+</ol>
+<p><strong>Plus: T_CONTRACT ergänzt die CLAUDE.md</strong></p>
+<p>Der T-Contract fordert die <em>grobe</em> Trennung &quot;Domain-Logik vs. State vs. View vs. Orchestrierung&quot;; die konkrete Modul-Liste reift während der Implementierung. Außerdem erbt er Prinzipien, die bereits in der <code>CLAUDE.md</code> beschrieben sind. Der Klarheit halber haben wir einige dieser Prinzipien, die im Projekt operativ wirken, aber normalerweise nicht im T_CONTRACT stehen müssten, explizit am Ende des T_CONTRACT angehängt.</p>
+<p><strong>Was hat man gelernt?</strong></p>
+<ul>
+<li><strong>F-Contract und T-Contract gehören gleichzeitig an den Anfang.</strong> Genau eine Spec-Zeile zur OO-Struktur (&quot;sehr gut objektorientiert strukturiert&quot;) wurde als Feature behandelt statt als plattform-prägendes T-Item — und kostete am Ende einen 686-Zeilen-Refactor in einer eigenen Phase.</li>
+<li><strong>Der Retrofit ist Heilung, kein Geheimnis.</strong> Die Übung dokumentiert den Fehler offen. Das ist der vermutlich didaktisch wertvollste Moment des ganzen Projekts — <em>gerade weil</em> die AI in vier Vermutungen falsch lag, bevor der User das Stichwort lieferte.</li>
+<li><strong>Anti-Pattern explizit benannt:</strong> Eine Spec-Nebenbemerkung &quot;Code soll OO sein&quot; als gleichwertiges Feature behandeln statt als T-Contract-Item.</li>
+</ul>
+<h3 id="29-phase-8--blockierbare-felder--die-hängender-test-geschichte">2.9 Phase 8 — Blockierbare Felder + die &quot;Hängender-Test&quot;-Geschichte</h3>
+<p><strong>Ziel.</strong> Rechtsklick togglet ein Feld blockiert/frei; blockierte Felder sichtbar anders; Solver respektiert sie.</p>
+<p><strong>Mikrofragen vorab.</strong> Visuelle Darstellung (dunkelgrau + Diagonal-Schraffur), Touch-/Tastatur-Substitut (Long-Press + Shift+Enter), Symmetrie-Interaktion (auto-orbit-extension).</p>
+<p><strong>Drei Eingabewege im selben Handler.</strong></p>
+<ul>
+<li>Maus: Rechtsklick (<code>contextmenu</code>, Default unterdrückt)</li>
+<li>Touch: 500-ms-Long-Press</li>
+<li>Keyboard: Shift+Enter auf fokussierter Zelle</li>
+</ul>
+<p><strong>Die hängende Test-Geschichte.</strong> Bei den Test-Erweiterungen schrieb die AI:</p>
+<pre><code class="language-js">test('Solver: 8x8 knight (0,0) with one blocked cell still solves', () =&gt; {
+  const r = Solver.solve(8, 8, moves, 0, 0, {
+    heuristic: 'warnsdorff',
+    blocked: new Set(['4,4']),
+  });
+  // ...
+});
+</code></pre>
+<p>User-Reaktion: &quot;Der Test hängt sich auf.&quot; Node-Probe bestätigte: <strong>Warnsdorff allein auf 8×8 mit einer einzelnen zentralen blockierten Zelle terminiert nicht in 5 Sekunden</strong> — wahrscheinlich nie. Die Heuristik gerät in eine pathologische Backtracking-Region.</p>
+<p>User-Hinweis war direkt + nützlich:</p>
+<blockquote>
+<p>&quot;Du kannst das Muster nehmen, das ich verwendet habe, die Lösung ist sofort da ...&quot;</p>
+</blockquote>
+<p>Mit einer vollständigen URL als Reproduktions-Recipe (<strong>Replay-Test in Action!</strong>):</p>
+<pre><code>…#heur=outsideIn&amp;sym=point&amp;mix=…&amp;start=7,7&amp;block=6,6;1,1;1,6;6,1;3,4;4,3;4,4;3,3
+</code></pre>
+<p>Ersetzt durch Outside-In + Point-Symmetrie + 8 symmetrische Blöcke, Start <code>(0,1)</code>: findet die 56-Zell-geschlossene Tour in 45 Schritten. Phase-7.5-Replay-Architektur trägt sofort: die AI konnte die User-Konfiguration in einer Zeile vom User-Browser zum Node-Probe übertragen.</p>
+<p><strong>Was hat man gelernt?</strong></p>
+<ul>
+<li><strong>Ein Test ist nicht &quot;richtig&quot;, nur weil er Code prüft.</strong> Er ist erst dann richtig, wenn er auch <em>terminiert</em>.</li>
+<li><strong>Pathologische Eingaben für Heuristiken finden ist nicht-trivial.</strong> Die einfachste Vorsichtsmaßnahme: echte User-Konfigurationen testen, nicht erfundene.</li>
+<li><strong>Detektor-vor-Fix-Prinzip praktisch.</strong> Erst den Hänger isoliert reproduzieren (Node-Probe), dann durch eine robuste Konfiguration ersetzen.</li>
+</ul>
+<p><img src="_assets/phase-8-blocks-point.png" alt="Phase 8 — Punkt-Symmetrie mit 8 blockierten Feldern, Outside-In findet 56-Zell-Tour um die Blocks herum"></p>
+<h3 id="210-phase-9--architektur-cluster-di--time-budget--stop--re-click-continue">2.10 Phase 9 — Architektur-Cluster (DI) + Time-Budget + Stop + Re-Click-Continue</h3>
+<p><strong>Vorgelagerte User-Frage</strong> (zwischen Phase 8 und Phase 9):</p>
+<blockquote>
+<p>&quot;Provokant gefragt: Welchen Nachteil hätte es, wenn wir grundsätzlich mit Instances hantieren. Dort wo wir Singletons nutzen, instanziieren wir einmalig ein Objekt, das per Konvention mit 'the' beginnt und arbeiten dann nur noch damit. Also z.B. class Solver, const theSolver = new Solver();&quot;</p>
+</blockquote>
+<p>Antwort nach Abwägung: <strong>fast keine Nachteile, mehrere Vorteile.</strong> Singleton ist globaler State in Klassen-Hülle und unterläuft <code>T_CONTRACT</code>-Sektion 1 (&quot;kein globaler State außerhalb von Klassen&quot;). Konsequenzen:</p>
+<ul>
+<li>Neue <code>CLAUDE.md</code>-Sektion <em>&quot;Dependency Injection bevorzugt vor Singleton-Pattern&quot;</em>.</li>
+<li><code>T_CONTRACT.md</code> Sektion 1 umformuliert: <code>static getInstance()</code> nicht zugelassen.</li>
+<li>Code-Refactor: <code>I18n</code> und <code>AppState</code> haben kein <code>getInstance</code> mehr; Konstruktoren nehmen ihre Abhängigkeiten explizit; <code>app.js</code> ist der einzige Ort, der <code>new</code> aufruft; Variablen-Konvention <code>theX</code>.</li>
+</ul>
+<p><strong>Re-Framing des <code>knight.md</code>-5-Sekunden-Confirm-Patterns.</strong></p>
+<p><code>knight.md</code> Z. 20 schlug vor: &quot;alle 5 Sekunden per <code>confirm()</code> fragen, ob weitergesucht werden soll&quot;. Mid-Phase 9 hat der User das neu sortiert mit zwei Use-Cases:</p>
+<blockquote>
+<p>&quot;1) Es kann sein, dass ich absichtlich will, dass ein JOB eine halbe Stunde lang sucht (beispielsweise gibt es eine zebra solution (2/3-Figur) für ein 10x10 Board, das die App bislang einfach nicht findet). Und da will ich nicht immer wieder vom Browser Protector unterbrochen werden, der mich nach ca. 15 Sekunden fragt, ob ich noch länger warten will!</p>
+<ol start="2">
+<li>Es gibt den Fall, dass ich absichtlich nur 1-2 Sekunden warten will, etwa wenn ich mehrere Startfelder durchprobieren will und vor allem an denjenigen interessiert bin, die schnell zu einer Lösung führen.&quot;</li>
+</ol>
+</blockquote>
+<p>Beide Use-Cases mit <strong>einem Mechanismus</strong> bedient: user-konfiguriertes <strong>Time-Budget pro Suche</strong> (Sekunden, Default 10). Plus Stop-Button. Plus chunked Async-Execution via <code>setTimeout(0)</code>-Yields — Browser bleibt responsiv, kein Browser-Protector-Pop-up.</p>
+<p><strong>Re-Click-Continue.</strong> Solver-Instanz lebt zwischen Klicks; bei gleichem Start + gleichen Settings setzt die zweite <code>.search()</code>-Call die Suche von der gefundenen Tour fort. Schritt-Counter wächst über alle Klicks.</p>
+<p><strong>Was hat man gelernt?</strong></p>
+<ul>
+<li><strong>User-getriebene Architektur-Verbesserung.</strong> Die &quot;DI statt Singleton&quot;-Frage war eine <em>provokante</em> User-Frage — die AI hatte den Singleton-Mischzustand als gegeben hingenommen. Eine Architektur-Regel landete in <code>CLAUDE.md</code> mit globaler Wirkung.</li>
+<li><strong><code>knight.md</code>-Spec ist nicht heilig.</strong> Der 5-Sekunden-Confirm war ein Workaround für fehlende Cancel-Möglichkeit. Mit chunked async + Time-Budget + Stop-Button gibt es eine bessere Lösung — und sie subsumiert beide Use-Cases.</li>
+</ul>
+<h3 id="211-phase-10--startfeld-sensitivität-heatmap">2.11 Phase 10 — Startfeld-Sensitivität (Heatmap)</h3>
+<p><strong>Ziel.</strong> Button &quot;Sensitivity&quot; erscheint <em>nach</em> erster Lösung. Klick startet pro nicht-blockiertem Startfeld eine eigene Erstlösungs-Suche; Schritt-Zahl wird als Heatmap+Zahl ins Feld geschrieben.</p>
+<p><strong>Mikrofragen vorab.</strong> Visuelle Darstellung (Heatmap + Zahl), Klick-Verhalten nach Sensitivität (sofort reguläre Tour), Symmetrie/Closed-Settings (mitnehmen wie aktuelle Settings). Plus User-Klärung: &quot;Das Zeitbudget gilt für jede Einzelsuche, ok?&quot; — exakt so geplant.</p>
+<p><strong>Implementations-Architektur.</strong> <code>SensitivityScan</code>-Klasse neben <code>SearchDriver</code> in <code>driver.js</code>, gleiche Token-basierte Cancellation. Heatmap-Rendering in <code>renderer.js</code>: log-Skala HSL-Ramp grün→rot, kompakte Step-Labels (<code>12k</code>, <code>1.2M</code>, <code>—</code> für no-solution-in-budget).</p>
+<p><strong>Das visuelle Lehrstück.</strong> Auf 8×8 Knight mit Outside-In zeigt die Sensitivitäts-Heatmap eine <em>sehr</em> heterogene Difficulty-Landschaft:</p>
+<ul>
+<li>Viele grüne Zellen mit <code>63</code> Schritten (Outside-In findet hier sauber durch)</li>
+<li>Mehrere rote Zellen mit <code>547</code> Schritten (8.7× mehr Arbeit)</li>
+<li>Eine gelb-grüne Mittelschicht</li>
+</ul>
+<p>Zum Vergleich: Warnsdorff produziert auf 8×8 Knight eine <em>fast einheitliche</em> Landschaft (alle Felder ≈ 63 Schritte). <strong>Outside-In ist deutlich uneinheitlicher</strong>, und die Heatmap macht diesen Unterschied zwischen Heuristiken auf einen Blick erfassbar.</p>
+<p><strong>Was hat man gelernt?</strong></p>
+<ul>
+<li><strong>Daten visualisieren beweist eine algorithmische Eigenschaft besser als Prosa.</strong> Niemand hätte aus <em>Worten</em> gespürt, wie heterogen Outside-In ist. Die Heatmap zeigt es in einem Bild.</li>
+<li><strong>Eine ‚Pro-Cell-Search'-Variante eines bestehenden Solvers ist günstig</strong>, wenn die Solver-Klasse von Anfang als Instance gebaut ist (Phase 9). Die Phase-10-Sensitivitäts-Funktionalität ist im Wesentlichen &quot;Solver in der Schleife mit fortlaufendem UI-Update&quot;.</li>
+</ul>
+<p><img src="_assets/phase-10-sensitivity.png" alt="Phase 10 — Sensitivitäts-Heatmap auf 8×8 Outside-In: heterogene Difficulty-Landschaft, grün=leicht, rot=schwierig"></p>
+<h3 id="212-phase-11--code-hygiene--100200-stresstest">2.12 Phase 11 — Code-Hygiene + 100×200-Stresstest</h3>
+<p><strong>Ziel.</strong> Code-Review-Tauglichkeit + Stresstest auf großem Brett.</p>
+<p><strong>Master-Plan-Tilt.</strong> Phase 11 sollte ursprünglich die Strukturierungs-Phase sein (Modul-Aufteilung). Das Phase-7.5-DI-Retrofit hatte das schon vorweggenommen. Phase 11 wurde damit zum <strong>Validierungs- und Politur-Pass</strong>.</p>
+<p><strong>100×200-Stresstest-Tabelle.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Konfiguration</th>
+<th>Ergebnis</th>
+<th>Schritte</th>
+<th>Zeit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Warnsdorff (open)</td>
+<td>✓ found</td>
+<td>19 999</td>
+<td><strong>86 ms</strong></td>
+</tr>
+<tr>
+<td>Outside-In (open)</td>
+<td>timeout</td>
+<td>286 M</td>
+<td>60 s</td>
+</tr>
+<tr>
+<td>Brute Force (open)</td>
+<td>timeout</td>
+<td>491 M</td>
+<td>60 s</td>
+</tr>
+<tr>
+<td>Warnsdorff CLOSED</td>
+<td>timeout</td>
+<td>298 M</td>
+<td>60 s</td>
+</tr>
+</tbody>
+</table>
+<p>Akzeptanzziel war &quot;einstellige Sekunden mit Warnsdorff&quot;. 86 ms ist 60× besser. Outside-In skaliert katastrophal auf große Bretter; Brute Force unbenutzbar; Closed-Warnsdorff schafft 100×200 nicht in 60 s (bekannte Schwenk-Bias-Limitation).</p>
+<p><strong>Polish-Items</strong> (CSS-Variablen für Akzent-Farbe, Focus-Ring auf <code>#search-controls</code>-Buttons, eine redundante Regel entfernt).</p>
+<p><strong>T-Contract-Verifikation Section-by-Section.</strong> Alle 8 + die geerbte Section 9 ✓.</p>
+<p><strong>Was hat man gelernt?</strong></p>
+<ul>
+<li><strong>Wenn die Architektur stimmt, wird die Hygiene-Phase ein Validierungs-Pass.</strong> Das Phase-7.5-Retrofit zahlt sich hier konkret aus.</li>
+<li><strong>Erfolgsindikatoren explizit machen</strong> (Master-Plan-Kriterium &quot;einstellige Sekunden&quot;) und am Ende messen — vermeidet das Gefühl &quot;wir sind irgendwo fertig&quot;.</li>
+</ul>
+<hr>
+<h2 id="3-lehrmomente-index-anhang">3. Lehrmomente-Index (Anhang)</h2>
+<p>Querverweise nach Thema. Wenn dich das Thema interessiert, schau die Phase an.</p>
+<h3 id="31-methode">3.1 Methode</h3>
+<ul>
+<li><strong>Mikrofragen vor Code.</strong> Vier auf 1 Spec-Zeile in <a href="#21-phase-1--brett-rendert-klick-erkennbar">Phase 1</a>. Drei vor Phase 8 (Visualisierung, Touch-Substitut, Symmetrie-Interaktion). Drei vor Phase 9, drei vor Phase 10. Die Regelhaftigkeit zeigt sich erst nach mehreren Phasen.</li>
+<li><strong>Vier-Schritt-Rhythmus</strong> (Klären → Implementieren → Testen → Commit) — Master-Plan-Vorgabe, durchgängig eingehalten.</li>
+<li><strong>Mid-Phase-Korrekturen sind Methode.</strong> <a href="#22-phase-2--solver-kern-dfs--warnsdorff">Phase 2</a> (i18n + Z-Order), <a href="#24-phase-4--heuristiken-figuren-mix-button-localstorage">Phase 4</a> (Status-Feedback-Bug), <a href="#27-phase-7--symmetrien-axisv--point--rot90">Phase 7</a> (Bias-Fix), <a href="#210-phase-9--architektur-cluster-di--time-budget--stop--re-click-continue">Phase 9</a> (Re-Framing der 5-Sekunden-Idee).</li>
+<li><strong>Phasen-Grenzen verteidigen.</strong> Re-Klick-Continue wurde in Phase 4 angefragt, aber auf Phase 9 verschoben.</li>
+</ul>
+<h3 id="32-verträge-contracts">3.2 Verträge (Contracts)</h3>
+<ul>
+<li><strong>F-Contract / T-Contract gleichzeitig.</strong> Lehrstück <a href="#28-phase-75--t-contract--architektur-retrofit-der-h%C3%B6hepunkt">Phase 7.5</a>. Diese Sektion ist <em>der</em> Höhepunkt des Projekts.</li>
+<li><strong><code>knight.md</code> als Intentionsskizze.</strong> Durchgängig — siehe Mikrofragen-Beispiele in jeder Phase.</li>
+<li><strong><code>T_CONTRACT.md</code> retrograd geschrieben + Sektion 9.</strong> Der erste Entwurf war zu spezifisch (8 Modul-Namen); User-Korrektur → abstrahiertere Form + Sektion 9 für die &quot;geerbten Globalen&quot;.</li>
+<li><strong>Hierarchie der Dokumente:</strong> <code>CLAUDE.md</code> global → <code>T_CONTRACT.md</code> projektlokal → <code>LEHRUNTERLAGE.md</code> (diese Datei) destilliert.</li>
+</ul>
+<h3 id="33-architektur">3.3 Architektur</h3>
+<ul>
+<li><strong>DI statt Singleton, <code>theX</code>-Konvention.</strong> Architektur-Cluster vor <a href="#210-phase-9--architektur-cluster-di--time-budget--stop--re-click-continue">Phase 9</a>. User-getrieben.</li>
+<li><strong>Modulgröße &lt; 250.</strong> T-Contract-Pflicht. Extraktion bei Überschreitung: <code>Sym</code> aus <code>Solver</code>, <code>SearchDriver</code> aus <code>app</code>, <code>SensitivityScan</code> aus <code>app</code>, Heatmap-Rendering von <code>Board</code> nach <code>Renderer</code>.</li>
+<li><strong>OO-Schnittführung erst während der Arbeit präzisierbar.</strong> T_CONTRACT-Korrektur nach User-Hinweis &quot;Liste der Module retrograd&quot;.</li>
+<li><strong>Baseline-Verhalten ist kein Feature.</strong> <code>CLAUDE.md</code> (Resize, Hover, Keyboard, sensible Defaults) — Erkenntnis aus <a href="#23-phase-3--variable-brettma%C3%9Fe--padding-fundament">Phase 3</a>.</li>
+</ul>
+<h3 id="34-algorithmus">3.4 Algorithmus</h3>
+<ul>
+<li><strong>Warnsdorff: brillant, aber nicht infallible.</strong> <a href="#23-phase-3--variable-brettma%C3%9Fe--padding-fundament">Phase 3</a> (8×4 = 13.4M Schritte). Tie-Breaker-Regeln (Pohl 1967) wären die Lösung — bewusst nicht im Scope.</li>
+<li><strong>Schwenk-Bias für geschlossene Touren.</strong> User-Beitrag — siehe <a href="#26-phase-6--geschlossene-touren-via-schwenk-bias">Phase 6</a>. Eine der elegantesten Mid-Phase-Verbesserungen des Projekts.</li>
+<li><strong>Farbparitäts-Argumente.</strong> 5×5 nur von dunklen Feldern lösbar — <a href="#23-phase-3--variable-brettma%C3%9Fe--padding-fundament">Phase 3</a>. Rot90 nur N mod 4 = 2 — <a href="#27-phase-7--symmetrien-axisv--point--rot90">Phase 7</a>.</li>
+<li><strong>Outside-In-Heterogenität sichtbar gemacht.</strong> <a href="#211-phase-10--startfeld-sensitivit%C3%A4t-heatmap">Phase 10</a> Heatmap.</li>
+</ul>
+<h3 id="35-werkzeuge">3.5 Werkzeuge</h3>
+<ul>
+<li><strong>URL-Hash als Replay-Mechanismus.</strong> <a href="#28-phase-75--t-contract--architektur-retrofit-der-h%C3%B6hepunkt">Phase 7.5</a> B2. Wurde in <a href="#29-phase-8--blockierbare-felder--die-h%C3%A4ngender-test-geschichte">Phase 8</a> zur direkten Bug-Reproduktion (User schickt URL, AI repliziert mit Node-Probe).</li>
+<li><strong>Browser-basierte Pure-Function-Tests</strong> in <code>tests/test.html</code>. <a href="#28-phase-75--t-contract--architektur-retrofit-der-h%C3%B6hepunkt">Phase 7.5</a> B5.</li>
+<li><strong>Token-Cancellation für chunked Async.</strong> <a href="#210-phase-9--architektur-cluster-di--time-budget--stop--re-click-continue">Phase 9</a> <code>SearchDriver</code>, <a href="#211-phase-10--startfeld-sensitivit%C3%A4t-heatmap">Phase 10</a> <code>SensitivityScan</code>.</li>
+<li><strong>Time-Budget statt Browser-Protector.</strong> <a href="#210-phase-9--architektur-cluster-di--time-budget--stop--re-click-continue">Phase 9</a> — Re-Framing der <code>knight.md</code>-Z.20-Idee.</li>
+</ul>
+<h3 id="36-anti-patterns-was-vermieden-wurde-oft-nach-fehler">3.6 Anti-Patterns (was vermieden wurde, oft nach Fehler)</h3>
+<ul>
+<li><strong>Heimliches Konsultieren des gelöschten Codes</strong> — <a href="#20-phase-0--tabula-rasa--self-commitment">Phase 0</a> Self-Commitment.</li>
+<li><strong>Phasen-Bündelung.</strong> Master-Plan-Regel: jede Phase ein Commit-Set, auch wenn &quot;zwei kleine Features zusammen in 10 Minuten&quot; gehen würden.</li>
+<li><strong>Späte Komplett-Rewrites zur Code-Schönheit.</strong> Vermieden. Closed-Warnsdorff-Bias-Limitation auf 100×200 bleibt als bekannte Eigenheit dokumentiert, statt überschrieben.</li>
+<li><strong>Retrograde Spezifität im T-Contract.</strong> Korrigiert durch User-Hinweis.</li>
+<li><strong>Stille Auslassung.</strong> <code>CLAUDE.md</code>-Pflicht. Lieber krachend abbrechen als falsche Ergebnisse produzieren.</li>
+<li><strong>Tests, die nicht terminieren.</strong> <a href="#29-phase-8--blockierbare-felder--die-h%C3%A4ngender-test-geschichte">Phase 8</a> — Detektor-vor-Fix-Anwendung.</li>
+</ul>
+<hr>
+<h2 id="4-referenz-anhänge">4. Referenz-Anhänge</h2>
+<h3 id="41-architektur-übersicht">4.1 Architektur-Übersicht</h3>
+<p>10 Module, alle &lt; 250 Zeilen, in dieser Lade-Reihenfolge in <code>index.html</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Modul</th>
+<th>Verantwortung</th>
+<th>Größe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>js/i18n.js</code></td>
+<td>Strings-Map, aktuelle Sprache, <code>t(key)</code>-Lookup, Listener</td>
+<td>111</td>
+</tr>
+<tr>
+<td><code>js/figures.js</code></td>
+<td><code>generateBaseMoves</code>, <code>computePad</code> (statische Helper)</td>
+<td>21</td>
+</tr>
+<tr>
+<td><code>js/sym.js</code></td>
+<td>Symmetrie-Helper: isValid, orbit, transform, expand</td>
+<td>60</td>
+</tr>
+<tr>
+<td><code>js/solver.js</code></td>
+<td>Iterativer DFS + Heuristik + Closure-Bias + Symmetrie; chunked <code>search(maxMs)</code></td>
+<td>238</td>
+</tr>
+<tr>
+<td><code>js/state.js</code></td>
+<td>Single source of truth aller Einstellungen; localStorage + URL-Hash</td>
+<td>230</td>
+</tr>
+<tr>
+<td><code>js/board.js</code></td>
+<td>Cell-DOM, Click/Long-Press/Keyboard, ARIA, Resize-Listener</td>
+<td>234</td>
+</tr>
+<tr>
+<td><code>js/renderer.js</code></td>
+<td>Tour-Linie + Nummern + Closing-Linie + Heatmap</td>
+<td>127</td>
+</tr>
+<tr>
+<td><code>js/driver.js</code></td>
+<td><code>SearchDriver</code> (chunked Single-Search) + <code>SensitivityScan</code></td>
+<td>182</td>
+</tr>
+<tr>
+<td><code>js/ui.js</code></td>
+<td>DOM-Controls-Lookup, applyI18n, applyState, bindHandlers</td>
+<td>196</td>
+</tr>
+<tr>
+<td><code>js/app.js</code></td>
+<td>Orchestrierung: instanziiert alles, verdrahtet Event-Handler, steuert den Lifecycle</td>
+<td>247</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Dependency-Graph</strong> (im Entry-Point <code>app.js</code> sichtbar gemacht):</p>
+<pre><code>   theI18n = new I18n()
+   theState = new AppState(theI18n)
+   theUI = new UI(theI18n, theState)
+   theBoard = new Board(theUI.boardEl, theI18n, theState)
+   theRenderer = new Renderer(theBoard)
+   theDriver = new SearchDriver(theState, theI18n, theUI, theRenderer)
+   theSensitivity = new SensitivityScan(theState, theI18n, theUI, theRenderer)
+</code></pre>
+<p>Keine <code>static getInstance()</code> mehr. Jede Klasse deklariert ihre Abhängigkeiten in der Konstruktor-Signatur.</p>
+<h3 id="42-akzeptanztests-übersicht">4.2 Akzeptanztests-Übersicht</h3>
+<p><strong>Automatisiert</strong> (Browser-Test-Runner <code>tests/test.html</code>, 12 Cases):</p>
+<ul>
+<li><code>Figures.generateBaseMoves(1,2)</code> / <code>(3,4)</code>: 8 distinct moves</li>
+<li><code>Figures.computePad</code></li>
+<li><code>Sym.isValid</code> Truth Table</li>
+<li><code>Sym.orbit</code> rot90 on 8×8 = 4 distinct</li>
+<li><code>Sym.transform</code> rot90 4× = identity</li>
+<li><code>Solver.solve</code> 8×8 knight Warnsdorff: 63 steps</li>
+<li><code>Solver.solve</code> 8×8 knight (3,3) closed Warnsdorff</li>
+<li><code>Solver.solve</code> 6×6 knight rot90: closed + rotational invariance</li>
+<li><code>Solver.solve</code> 5×5 knight light square → null</li>
+<li><code>Solver.solve</code> blocked start → null</li>
+<li><code>Solver.solve</code> 8×8 Outside-In Point + 8 blocks (User-Pattern from Phase 8)</li>
+<li><code>Solver.solve</code> asymmetric block on 6×5 axisV → null</li>
+<li><code>Solver.solve</code> 10×10 Warnsdorff + Outside-In</li>
+</ul>
+<p><strong>Manuell pro Phase</strong> in <code>PROTOKOLL.md</code> dokumentiert, mit Screenshots in <code>_assets/</code>:</p>
+<ul>
+<li>Phase 1: 8×8 Brett rendert</li>
+<li>Phase 2: Solver-Kern + Outside-In Tour</li>
+<li>Phase 3: 8×4 13M-Schritte + 200×100 stress</li>
+<li>Phase 4: 8×6 Zebra &quot;no solution after 371M steps&quot;</li>
+<li>Phase 5: 7×7 Lines-only + 40×25 Numbers-only</li>
+<li>Phase 6: 9×8 closed mit Schwenk-Bias</li>
+<li>Phase 7: 6×6 Rot-90° Outside-In (10 steps!)</li>
+<li>Phase 8: 8×8 Point + 8 Blöcke, Outside-In, 56-Zell-Tour</li>
+<li>Phase 10: 8×8 Outside-In Sensitivitäts-Heatmap</li>
+</ul>
+<h3 id="43-master-plan-erfolgsindikatoren">4.3 Master-Plan-Erfolgsindikatoren</h3>
+<p>Alle erfüllt:</p>
+<ul>
+<li>✓ 14 Features aus <code>knight.md</code> umgesetzt</li>
+<li>✓ 100×200 mit Warnsdorff in 86 ms (Ziel: einstellige Sekunden — übererfüllt)</li>
+<li>✓ App startet aus <code>file://</code> ohne Server/Node-Abhängigkeit</li>
+<li>✓ Multi-File, OO-strukturiert, jede Datei kohärent und &lt; 250 Zeilen</li>
+</ul>
+<h3 id="44-was-im-projekt-umfang-nicht-behandelt-wurde">4.4 Was im Projekt-Umfang NICHT behandelt wurde</h3>
+<p>Transparent dokumentiert in <code>T_CONTRACT.md</code>-Sektion &quot;Deferred&quot;:</p>
+<ul>
+<li>Color-blind-safe Heatmap-Palette (optional, niedrige Priorität)</li>
+<li>Mobile-Portrait-spezifisches Layout</li>
+<li>Cross-Browser-Lauf (Firefox / Safari manuell)</li>
+<li>Touch-Substitut umfassender Geräte-Test</li>
+<li>Warnsdorff-Tie-Breaker-Regel (Pohl 1967) für 8×4-Pathologie</li>
+<li>Closed-Tour-Suche-Verbesserung jenseits Schwenk-Bias (für 100×200)</li>
+</ul>
+<p>Diese Items sind keine Geheimnisse — sie liegen offen. Wer die App auf einem dieser Punkte stresst, weiß <em>vorher</em>, was nicht funktioniert.</p>
+<hr>
+<h2 id="schluss">Schluss</h2>
+<p>Diese Lehrunterlage ist das Ergebnis von Phase 12 des Master-Plans, geschrieben im Anschluss an die Phasen 0–11 als co-redaktionelle Destillation des PROTOKOLLs. Sie versucht, <em>die Reibung</em> sichtbar zu lassen, <em>nicht das glatte Ergebnis</em>. Wer den Eindruck hat, dass Phase 7.5 (NFR-Diagnose) mehr Raum bekommt als andere Phasen — der hat den Punkt verstanden. Die methodischen Lehrstücke verteilen sich nicht gleichmäßig. Sie konzentrieren sich dort, wo der User den Mut hatte, eine grundlegende Designfrage zu stellen, und die AI den Mut hatte, sie ehrlich zu beantworten.</p>
+<p>Wer Knight's Tour als Knight's Tour interessant findet — wunderbar, im Repo läuft die App. Wer den Prozess interessant findet — willkommen im PROTOKOLL, willkommen in dieser Destillation.</p>
+
+</body>
+</html>

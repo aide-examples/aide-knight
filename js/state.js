@@ -53,16 +53,24 @@ class AppState {
     timeBudget: 10,
   };
 
+  // Hydrate this instance from both persistence layers. localStorage runs
+  // first (durable session restore), then the URL hash, so a deep-link can
+  // override the stored state without us having to clear storage first.
   load() {
     this._loadFromStorage();
     this._loadFromHash();
   }
 
+  // Flush the current state to both persistence layers. Called on every
+  // user-visible change so a reload or link copy is always up to date.
   save() {
     this._saveToStorage();
     this._saveToHash();
   }
 
+  // Read the v1 JSON blob from localStorage and copy validated fields into
+  // `this`. Defensive against missing storage and malformed data — anything
+  // that fails validation silently falls back to the constructor default.
   _loadFromStorage() {
     try {
       const raw = localStorage.getItem(AppState.STATE_KEY);
@@ -90,6 +98,8 @@ class AppState {
     } catch { /* ignore — start from defaults */ }
   }
 
+  // Serialize the current state into the v1 JSON blob and write it to
+  // localStorage. lastStart is intentionally omitted (see body comment).
   _saveToStorage() {
     try {
       // Note: lastStart is intentionally NOT persisted to localStorage —
@@ -108,6 +118,11 @@ class AppState {
     } catch { /* ignore — non-persistent mode */ }
   }
 
+  // Decode the URL fragment (see hash format in module header) and apply
+  // every recognised parameter to `this`. Each field is validated; bogus
+  // values are silently dropped so a hand-edited URL can't corrupt state.
+  // Called after _loadFromStorage so hash values override stored ones —
+  // a deep link supersedes the session.
   _loadFromHash() {
     const hash = window.location.hash.substring(1);
     if (!hash) return;
@@ -173,6 +188,11 @@ class AppState {
     if (Number.isInteger(tb) && tb >= 1) this.timeBudget = tb;
   }
 
+  // Encode the current state into the URL fragment. Uses history.replaceState
+  // (not pushState) so back/forward doesn't fill with intermediate states.
+  // Only fields that deviate from AppState.DEFAULTS are written, plus mix
+  // (only when the order is non-canonical), start (only when set), and
+  // block (only when non-empty) — keeps the URL clean at the default state.
   _saveToHash() {
     // Only write deviations from defaults — at the default state the URL
     // stays clean. mix only if the move order is shuffled vs the figure's
@@ -214,6 +234,9 @@ class AppState {
     }
   }
 
+  // True iff `saved` is a permutation of `base` (same set of moves, no
+  // duplicates, all integer pairs). Used to validate a stored or URL-passed
+  // move order before adopting it as activeMoves.
   _isValidMoveOrder(saved, base) {
     if (!Array.isArray(saved) || saved.length !== base.length) return false;
     const baseKeys = new Set(base.map((m) => m.join(',')));

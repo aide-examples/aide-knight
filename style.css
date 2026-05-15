@@ -157,6 +157,14 @@ h1 {
   color: var(--color-ink);
 }
 
+#footer-links {
+  margin-top: 1.2rem;
+  font-size: 0.9rem;
+  color: var(--color-ink);
+}
+#footer-links a { color: var(--color-accent); }
+#footer-links .sep { margin: 0 0.4rem; color: var(--color-border); }
+
 /* a11y: visible focus ring on keyboard navigation. :focus-visible only
    activates for keyboard or otherwise-keyboard-equivalent focus, so mouse
    clicks don't leave a lingering outline. z-index lifts it above numbers. */
